@@ -552,6 +552,131 @@ def render(tmpl, ctx, merged_name, merged_sha, merged_size):
             .format(**kw))
 
 
+def markdown_to_text(md):
+    """
+    把生成的 markdown 说明转成**纯文本**版本（.txt）。
+
+    🔴 为什么不直接手写两份模板？
+        中文 md / 英文 md 是内容主体，txt 是它的纯文本投影。
+        若各写一份模板，改了中文忘了改英文、或改了md忘了改 txt，
+        迟早会出现"四个文件说法不一致"的尴尬。
+        所以这里用**同一个渲染结果**做转换 —— 内容天然永远一致。
+
+    转换规则：
+      | 语法              | 处理                       |
+      |------------------|--------------------------|
+      | `# 标题`            | 标题文字 + `====` 下划线（宽度自适应）|
+      | `**粗体**` / `` `代码` `` | 去掉标记，保留文字         |
+      | `> 引用`            | 缩进 2 空格               |
+      | 表格 `|a|b|`        | 转成按列宽对齐的等宽纯文本表格   |
+      | ``` 代码块 ```      | 原样保留（去掉围栏行）           |
+      | 列表 `- / 1.`       | 保留符号                  |
+      | `[文字](链接)`        | `文字 (链接)`              |
+      | `---` 分隔线         | `=`×72                    |
+    """
+    lines = md.split("\n")
+    out = []
+    i = 0
+    n = len(lines)
+
+    def w(s):
+        """
+        计算字符串的**终端显示宽度**：中文/全角字符按 2 格算。
+        纯 ASCII 按 1 格。
+
+        为什么需要它？
+            表格列宽对齐靠它。如果按 len() 算，中文列会比实际窄，
+            对齐全乱—— 因为终端里一个汉字占两列。
+        """
+        return sum(2 if ord(ch) > 0x2E80 else 1 for ch in s)
+
+    def strip_inline(s):
+        """去掉行内 markdown 标记，但保留文字内容本身。"""
+        s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 (\2)", s)   # 链接 → 文字 (url)
+        s = s.replace("**", "").replace("`", "")                  # 粗体 / 行内代码
+        s = s.replace("*", "")
+        return s.rstrip()
+
+    while i < n:
+        line = lines[i]
+
+        # ── 表格：检测 "| --- | --- |" 分隔行 ──────────────────────────
+        if (line.lstrip().startswith("|") and i + 1 < n
+                and re.match(r"^\s*\|[\s:|-]+\|\s*$", lines[i + 1])):
+            header = [c.strip() for c in line.strip().strip("|").split("|")]
+            i += 2                      # 跳过分隔行
+            rows = []
+            while i < n and lines[i].lstrip().startswith("|"):
+                rows.append([c.strip() for c in lines[i].strip().strip("|").split("|")])
+                i += 1
+            # 计算每列最大宽度（按显示宽度算，中文算 2 格）
+            ncol = max([len(header)] + [len(r) for r in rows])
+            header += [""] * (ncol - len(header))
+            for r in rows:
+                r += [""] * (ncol - len(r))
+            widths = [max(w(header[c]), max((w(r[c]) for r in rows), default=0))
+                      for c in range(ncol)]
+            def pad(s, width):
+                return s + " " * max(0, width - w(s))
+            out.append("  ".join(pad(strip_inline(header[c]), widths[c])
+                                 for c in range(ncol)).rstrip())
+            out.append("  ".join("-" * widths[c] for c in range(ncol)))
+            for r in rows:
+                out.append("  ".join(pad(strip_inline(r[c]), widths[c])
+                                     for c in range(ncol)).rstrip())
+            out.append("")
+            continue
+
+        # ── 标题 ──────────────────────────────────────────────────────
+        m = re.match(r"^(#{1,6})\s+(.*)$", line)
+        if m:
+            text = strip_inline(m.group(2))
+            if m.group(1) == "#":
+                out.append(text)
+                out.append("=" * min(max(w(text), 20), 78))
+            else:
+                out.append("")
+                out.append(text)
+                out.append("-" * min(max(w(text), 12), 78))
+            out.append("")
+            i += 1
+            continue
+
+        # ── 代码块 ────────────────────────────────────────────────────
+        if line.strip().startswith("```"):
+            i += 1
+            while i < n and not lines[i].strip().startswith("```"):
+                out.append(lines[i])
+                i += 1
+            i += 1                       # 跳过收尾围栏
+            out.append("")
+            continue
+
+        # ── 水平分隔线 ────────────────────────────────────────────────
+        if line.strip() == "---":
+            out.append("=" * 78)
+            out.append("")
+            i += 1
+            continue
+
+        # ── 引用块 ────────────────────────────────────────────────────
+        if line.lstrip().startswith(">"):
+            out.append("  " + strip_inline(line.lstrip().lstrip("> ")))
+            i += 1
+            continue
+
+        out.append(strip_inline(line))
+        i += 1
+
+    # 合并连续空行，最多留 1 个
+    cleaned = []
+    for ln in out:
+        if not ln.strip() and cleaned and not cleaned[-1].strip():
+            continue
+        cleaned.append(ln)
+    return "\n".join(cleaned).strip() + "\n"
+
+
 def main():
     ap = argparse.ArgumentParser(description="ESP-FC 耀坤整理版 固件打包与指纹说明生成")
     ap.add_argument("--env", default="esp32s3_yaokun", help="PlatformIO 编译环境名")
@@ -581,12 +706,23 @@ def main():
         merged_name = os.path.basename(merged_path)
         log(f"SHA-256 = {merged_sha}")
 
-    # ── 2) 生成中英文说明 ─────────────────────────────────────────────────
-    for ext, tmpl in (("md", CN_TMPL), ("txt", EN_TMPL)):
-        out = os.path.join(RELEASE_DIR, base + f"_指纹与烧录说明.{ext}")
+    # ── 2) 生成 4 份说明：中文/英文 × markdown/纯文本 ────────────────────
+    #      md 是内容主体；txt 由 markdown_to_text() 自动投影，保证两两一致。
+    docs = (
+        ("_指纹与烧录说明.md", "CN_TMPL", False),
+        ("_指纹与烧录说明.txt", "CN_TMPL", True),
+        ("_Fingerprint_and_Flashing_EN.md", "EN_TMPL", False),
+        ("_Fingerprint_and_Flashing_EN.txt", "EN_TMPL", True),
+    )
+    for suffix, tmpl_name, as_text in docs:
+        tmpl = CN_TMPL if tmpl_name == "CN_TMPL" else EN_TMPL
+        out = os.path.join(RELEASE_DIR, base + suffix)
+        body = render(tmpl, ctx, merged_name, merged_sha, merged_size)
+        if as_text:
+            body = markdown_to_text(body)
         with open(out, "w", encoding="utf-8") as f:
-            f.write(render(tmpl, ctx, merged_name, merged_sha, merged_size))
-        log(f"说明已生成 → {os.path.basename(out)}")
+            f.write(body)
+        log(f"说明已生成 → {os.path.basename(out)}  ({human_size(len(body.encode('utf-8')))})")
 
     log("全部完成。")
 
