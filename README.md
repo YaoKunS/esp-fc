@@ -14,15 +14,17 @@
 
 ![Upstream](https://img.shields.io/badge/Upstream-rtlopez%2Fesp--fc-lightgrey)
 
+![YaoKun](https://img.shields.io/badge/YaoKun-S3%20Hardware%20Port-c8102e)
+
 **简体中文** · [**English**](README_EN.md)
 
 </div>
 
 ---
 
-> 📌 **本仓库是 [rtlopez/esp-fc](https://github.com/rtlopez/esp-fc) 的中文整理版。**  
-> 固件源码 100% 保持上游原样（仅调整了目录位置，未改一行代码逻辑），  
-> 本仓库额外提供：中文说明文档、重新规划的目录结构。  
+> 📌 **本仓库是 [rtlopez/esp-fc](https://github.com/rtlopez/esp-fc) 的中文整理版 + 耀坤 S3 硬件适配版。**  
+> `master` 分支**保持上游原样**（仅调整目录位置，未改一行代码逻辑）。  
+> `yaokun-organized` 分支在整理版基础上**新增了耀坤 S3 板级适配**（详见下方 [耀坤 S3 适配版](#-耀坤-s3-适配版yaokun-organized-分支)）。  
 > 上游项目与作者：[Ramon Lopez](https://github.com/rtlopez) · MIT 许可
 
 ## 📌 这是什么
@@ -53,217 +55,218 @@ ESP-FC 是一款运行在 **ESP32** 上的开源飞控固件，定位是**迷你
 | **安全保护**          | 失控保护（failsafe）、蜂鸣器、LED、电压监测                                        |
 | **Betaflight 兼容** | 配置工具兼容 v10.10，现有 Betaflight 调参经验可直接套用                              |
 
-## 📁 目录结构（本整理版重新整理）
+---
 
-> 🔧 **为什么要重整**：上游把 PlatformIO 工程文件、文档、测试、Python 辅助脚本平铺在根目录。  
-> 本整理版把**固件相关的一律收进 `Firmware/`**，其中包含**完整的 PlatformIO 工程**  
-> （`platformio.ini` 与 `src/`、`lib/`、`test/`、`bin/` 同级），  
-> 因此**进入 `Firmware/` 后 `pio run` 即可直接编译，零配置改动**。
+## 🚁 耀坤 S3 适配版（`yaokun-organized` 分支）
 
-```text
-esp-fc/                        # ← 仓库根：说明文档 + 许可证
-├── README.md                  # 本文件（中文）
-├── README_EN.md               # 英文版说明
-├── LICENSE                    # MIT 许可（原作者）
-├── AGENTS.md                  # AI 辅助开发约定
-├── esp-fc.code-workspace      # VS Code 工作区（已指向 Firmware/）
-├── Firmware/                  # ★ 固件工程（完整 PlatformIO 项目）
-│   ├── platformio.ini         #   ★ 构建配置：7 种芯片环境 + native 单元测试
-│   ├── partitions_4M_nota.csv  #   分区表
-│   ├── src/                   #   主程序 main.cpp
-│   ├── lib/                   #   核心库
-│   │   ├── Espfc/             #     飞控主逻辑（控制律、传感器、无线）
-│   │   ├── AHRS/              #     姿态解算
-│   │   ├── EscDriver/         #     电调协议驱动
-│   │   ├── Gps/               #     GPS 支持
-│   │   ├── EspWire/           #     I2C 封装
-│   │   ├── MultiButton/       #     按键处理
-│   │   ├── betaflight/        #     Betaflight 协议兼容层
-│   │   └── printf/            #     格式化输出
-│   ├── include/               #   公共头文件
-│   ├── test/                  #   单元测试（16 个测试集，native 环境运行）
-│   ├── bin/                   #   构建辅助 Python 脚本（版本号、格式化、固件合并）
-│   ├── docker/                #   测试容器
-│   └── docker-compose.yml     #   容器编排
-├── Docs/                      # ★ 文档
-│   ├── setup.md               #   ★ 配置指南（必读）
-│   ├── wiring.md              #   ★ 接线说明（必读）
-│   ├── cli.md                 #   ★ CLI 命令参考（必读）
-│   ├── wireless.md            #   ★ Wi-Fi 与 ESP-NOW 接收机（必读）
-│   ├── connections.md         #   连接器定义
-│   ├── development.md         #   开发指南
-│   └── internal/              #   内部设计文档
-└── .github/workflows/         # CI：单元测试 + 7 平台构建 + 产物上传
+这一节是**给耀坤 S3 无人机硬件的完整落地教程**：从接线、编译、烧录、地面站配置，  
+到首次试飞的每一步。如果你手上是耀坤的板子，**只看这一节就够了**。
+
+### 适配了什么
+
+| 编号     | 文件                                                        | 改动                                                 |
+| ------ | --------------------------------------------------------- | -------------------------------------------------- |
+| **Y1** | `Firmware/lib/Espfc/src/Target/TargetESP32s3YaoKun.h`（新建） | 耀坤 S3 板级引脚定义，逐条对齐《耀坤S3无人机引脚定义.xlsx》                |
+| **Y2** | `Firmware/lib/Espfc/src/Target/Target.h`                  | +3 行：`-DESPFC_TARGET_YAOKUN` 时选耀坤定义                |
+| **Y3** | `Firmware/platformio.ini`                                 | 新增 `esp32s3_yaokun` / `esp32s3_yaokun_n4r2` 两个编译环境 |
+| **Y4** | 编译宏 `-DESPFC_DEV_PRESET_BRUSHED`                          | 输出协议强制 PWM —— 8520 空心杯是**有刷**电机                    |
+
+> ✅ **算法层 0 行改动**。姿态解算（AHRS）、滤波、PID、混控、MSP 协议栈、地面站兼容性  
+> 全部原样保留上游实现。上游的 `[env:esp32s3]` 也**一行未改**，可随时切换对比。
+
+### 为什么必须这么做
+
+上游 `TargetESP32s3.h` 是给 **Lolin S3 Mini 一类通用模板板**写的，引脚全是占位值。  
+直接烧到耀坤板上会：
+
+- ❌ **四个电机一个都不转** —— 上游驱动 39/40/41/42，耀坤板的电调接在 **6/5/15/16**
+- ❌ **蜂鸣器常鸣** —— 上游把 GPIO39 当电机脚，而耀坤板上 **39 = 蜂鸣器**
+- ❌ **IMU 读不到** —— 上游 SPI 片选是 8、时钟是 12，耀坤板是 **CS=17、SCK=38**
+- ❌ **电池电压读数偏差一倍** —— 上游 ADC 接 GPIO1，耀坤板是 **GPIO2** 且分压比为 1:2
+
+### 完整引脚表
+
+**电机输出（🔴 8520 空心杯有刷电机）**
+
+| 通道               | GPIO   | 丝印      | 位置    |
+| ---------------- | ------ | ------- | ----- |
+| `ESPFC_OUTPUT_0` | **6**  | MOT1_FR | 右前 FR |
+| `ESPFC_OUTPUT_1` | **5**  | MOT2_RR | 右后 RR |
+| `ESPFC_OUTPUT_2` | **15** | MOT3_RL | 左后 RL |
+| `ESPFC_OUTPUT_3` | **16** | MOT4_FL | 左前 FL |
+
+**IMU（六轴）**
+
+| 功能          | GPIO   | 说明                      |
+| ----------- | ------ | ----------------------- |
+| SPI_SCK     | **38** |                         |
+| SPI_MOSI    | **18** |                         |
+| SPI_MISO    | **21** |                         |
+| **GYRO_CS** | **17** | 🔴 **V1 板实测值**；V2 板为 42 |
+| I2C_SCL     | **8**  | 🔴 **SCL=8、SDA=9，别写反**  |
+| I2C_SDA     | **9**  | MPU6050 / BMP280 / 磁力计  |
+
+**遥控与串口**
+
+| 用途         | GPIO      | 说明                        |
+| ---------- | --------- | ------------------------- |
+| SBUS 输入    | **1**     | xlsx `EXT01`；SBUS 是**单线** |
+| ELRS TX    | **11**    | 飞控 → 接收机                  |
+| ELRS RX    | **12**    | 接收机 → 飞控                  |
+| UART0(MSP) | **43/44** | 地面站主串口，115200 8N1         |
+| USB CDC    | —         | S3 原生 USB，枚举为虚拟 COM       |
+
+**其它**
+
+| 功能      | GPIO   | 说明                                                      |
+| ------- | ------ | ------------------------------------------------------- |
+| VBAT 采样 | **2**  | 1:2 分压 ⇒ `ESPFC_ADC_SCALE = 2.0f/4096`（填错电压显示减半、低压告警不响） |
+| 蜂鸣器     | **39** | 有源蜂鸣器                                                   |
+| 蓝灯      | **14** | ESP-FC 只驱动单色灯；红 41 / 绿 7 未用                             |
+| 按键      | -1     | 本板无独立按键，配对用 CLI                                         |
+
+> ⚠️ **S3 硬件禁区**：GPIO26~37 是内部 Flash/PSRAM（碰了开不了机）；  
+> GPIO0/3/45/46 是启动 strapping 脚；GPIO43/44 是唯一的 MSP 串口。
+
+### 🔴 8520 空心杯 = 有刷电机，必须开 BRUSHED
+
+这是**唯一一个"不编译就完全飞不起来"的决定**。
+
+ESP-FC 默认发 **DShot300**（数字协议，需要智能电调里有解码芯片）。  
+8520 空心杯配的是**廉价有刷电调**，只认传统 **PWM 脉宽**。  
+给它发 DShot = 给门铃贴张纸条写 "DingDong"，它毫无反应 ⇒ **四电机全停转**。
+
+`-DESPFC_DEV_PRESET_BRUSHED` 让 `ModelConfig.h` 做三件事：
+
+```cpp
+output.protocol = ESC_PROTOCOL_BRUSHED;   // 协议换成 PWM
+output.async = true;                       // 异步 LEDC 输出，不占 CPU
+output.rate = 3000;                        // 3 kHz
 ```
 
-**整理前后对照：**
+同时我们在 Target 里**故意不定义** `ESPFC_DSHOT_TELEMETRY` ——  
+DShot 双向回读转速只对智能电调有意义，对 PWM 电调只会白占 DMA 与串口。
 
-| 原始路径                                                                                                             | 整理后路径           | 理由                                  |
-| ---------------------------------------------------------------------------------------------------------------- | --------------- | ----------------------------------- |
-| `platformio.ini`、`src/`、`lib/`、`include/`、`test/`、`bin/`、`docker/`、`docker-compose.yml`、`partitions_4M_nota.csv` | `Firmware/` 下同级 | 合并为**一个完整 PlatformIO 工程**，内部相对路径零改动 |
-| `docs/`                                                                                                          | `Docs/`         | 文档                                  |
-| `LICENSE`、`AGENTS.md`、`esp-fc.code-workspace`                                                                    | 仓库根             | 项目级文件                               |
+### 选对编译环境（Flash / PSRAM）
 
-## 🚀 快速开始
+| 项             | `esp32s3_yaokun`（立创 R8N8）★ | `esp32s3_yaokun_n4r2`（Supermini） |
+| ------------- | -------------------------- | -------------------------------- |
+| Flash         | 8 MB                       | 4 MB                             |
+| PSRAM         | 8 MB **OPI（八线）**           | 2 MB **QIO（四线）**                 |
+| 分区表           | `default_8MB.csv`          | `partitions_4M_nota.csv`         |
+| `memory_type` | `qio_opi`                  | `qio`                            |
 
-### 硬件要求
+> 🔴 **选错直接 panic，且没有任何串口输出、地面站完全搜不到板子**：  
+> N4R2 刷了 R8N8 参数 → app 超出 4MB 分区边界 + OPI 初始化失败。  
+> 看模组丝印即可判断：`R8N8` = 8+8，`N4R2` = 4+2。
 
-- ESP32 或 ESP32-S3 开发板
-- MPU9250（SPI）或 MPU6050（I2C）陀螺仪模块（GY-88 / GY-91 / GY-521 等）
-- 带 5V BEC 的配电板（PDB）
-- 蜂鸣器及若干元件（可选）
-
-### 软件准备
-
-- [Betaflight Configurator](https://github.com/betaflight/betaflight-configurator/releases) **v10.10**
-- [CH340 USB 转串口驱动](https://sparks.gogo.co.nz/ch340.html)
-
-### 从源码编译
+### 编译
 
 ```bash
 git clone https://github.com/YaoKunS/esp-fc.git
 cd esp-fc
-git checkout yaokun-organized   # ★ 切到耀坤整理版分支（默认 master 是上游原版结构）
-cd Firmware                     # ← PlatformIO 工程根
+git checkout yaokun-organized
+cd Firmware
 
-pio run -e esp32            # 编译 ESP32
-pio run -e esp32s3          # 编译 ESP32-S3
-pio test -e native          # 运行单元测试
+pio run -e esp32s3_yaokun          # ★ 编译 R8N8（常用）
+pio run -e esp32s3_yaokun_n4r2     # 编译 N4R2
+pio test -e native                 # 跑单元测试
 ```
 
-> 💡 也可以用 VS Code 打开仓库根的 `esp-fc.code-workspace`（已配置好指向 `Firmware/`），  
-> 配合 PlatformIO 插件一键编译烧录。
+VS Code 里打开 `esp-fc.code-workspace`，底部状态栏选 `esp32s3_yaokun`：
 
-### 烧录固件
+| 操作    | 快捷键          |
+| ----- | ------------ |
+| 编译    | `Ctrl+Alt+B` |
+| 烧录    | `Ctrl+Alt+U` |
+| 串口监视器 | `Ctrl+Alt+M` |
 
-**方式一：下载预编译固件**
+平台会先编译，所以**第一次编译约 2~5 分钟**（要装工具链、扫 44 个库）。
 
-1. 从 [Releases 页面](https://github.com/rtlopez/esp-fc/releases) 下载对应固件
-2. 打开 [ESP Tool Website](https://espressif.github.io/esptool-js/)
-3. 点 "Connect" 选择设备端口
-4. 添加固件文件，Flash Address 设为 `0x00`
-5. 点 "Program"
-6. 成功后断电重启
+### 烧录
 
-![ESP-FC 烧录](Docs/images/esptool-js-flash-connect.png)
-
-**方式二：PlatformIO 直接烧录**
+**方式一：PlatformIO（推荐，自动进下载模式）**
 
 ```bash
 cd Firmware
-pio run -e esp32 --target upload
+pio run -e esp32s3_yaokun -t upload --upload-port COM28
+pio device monitor --port COM28
 ```
 
-### 首次配置
+配置里已开 `use_1200bps_touch` + `wait_for_upload_port` + `require_upload_port`，  
+插上板子它会自己复位进下载模式。
 
-烧录完成后，按顺序做四件事：
+**方式二：预编译固件（发给别人时用）**
 
-1. **配置引脚映射** —— 按你的实际接线设置各引脚功能，详见 [CLI 参考](Docs/cli.md)
-2. **连接 Betaflight Configurator** —— 按个人偏好完成配置
-3. **无桨测试电机** —— ⚠️ **务必拆掉桨叶再通电测试**
-4. 玩得开心 😄
+固件在 [`Firmware/release/`](Firmware/release/)，含**中英文指纹与烧录说明**。  
+用 [ESP Tool Website](https://espressif.github.io/esptool-js/)：
 
-> [!NOTE]  
-> **重要经验法则**：如果某个选项在 Betaflight Configurator 里改不动、保存后又回退，  
-> 说明**固件不支持该功能**。请严格按 [配置指南](Docs/setup.md) 操作。
+| 文件               | Flash 地址  |
+| ---------------- | --------- |
+| `bootloader.bin` | `0x0`     |
+| `partitions.bin` | `0x8000`  |
+| `boot_app0.bin`  | `0xE000`  |
+| `firmware.bin`   | `0x10000` |
 
-## 🔌 接线图
+> ⚠️ **不要整片擦除**。参数持久化在 NVS 区（`0x9000`），整片连写会清掉你调好的  
+> PID 与校准数据。按上表**分片烧录**即可。
 
-![ESP-FC 接线图](Docs/images/espfc_wiring_combined.png)
+**烧录失败停在下载模式？** 先确认 USB CDC 已枚举出 COM；  
+不行就按住 BOOT 键再复位，或改用 UART0（GPIO43/44）。
 
-> ⚠️ **动手前必读**：接线错误是烧毁芯片最常见的原因。请先对照  
-> [接线文档](Docs/wiring.md) 确认每根线，再通电。
+### 首次配置（Betaflight Configurator）
 
-## 📡 硬件与协议兼容性
+1. **接上位机** —— 推荐 UART0（43/44）；USB CDC 也行
+2. **CLI 里先确认引脚** —— 敲 `status` 和 `dump`，把输出存成文件做基线
+3. **设置串口功能** —— UART0 = MSP，UART2（11/12）如接 ELRS 则协议选 **CRSF**
+4. **不装桨测电机** —— ⚠️ **务必先拆掉桨叶**。四个电机必须全部响；  
+   全不响 → 检查是否漏了 `-DESPFC_DEV_PRESET_BRUSHED`
+5. **校准加速度计** —— 逐面静止 ≥2 秒，采满六面
+6. **插桨，开陷波** —— 有刷电机噪音大，CLI 敲 `set gyro_notch_count 3`
+7. **设置 failsafe** —— 按你的接收机类型配置失控保护策略
 
-### 主控芯片
+### 悬空台架检查（不装桨也能做完的大部分项）
 
-| 芯片           | 状态                |
-| ------------ | ----------------- |
-| **ESP32**    | ✅ 推荐              |
-| **ESP32-S3** | ✅ 推荐              |
-| ESP32-S2     | ⚠️ 实验性            |
-| ESP32-C3     | ⚠️ 实验性，性能不足，无 FPU |
-| RP2350       | ⚠️ 实验性，部分可用       |
-| RP2040       | ⚠️ 实验性，性能不足，无 FPU |
-| ESP8266      | ❌ 已废弃，不再维护        |
+- 手动左右/前后倾斜机身，地面站姿态仪应**同向**翻转
+- 拔掉 IMU 排线 → 应报"传感器失联"而不是静默
+- 断开接收机 → 应进入 failsafe，电机降油门
+- 地面站电压读数应与万用表实测**一致**（验证 `ESPFC_ADC_SCALE` 填对了）
 
-### 传感器与协议
+### ⚠️ 首次试飞必读
 
-- **陀螺仪**：MPU6050、MPU6000、MPU6500、MPU9250、ICM20602、ICM42688、BMI160
-- **气压计**：BMP180、BMP280、SPL06
-- **磁罗盘**：HMC5883、QMC5883、AK8963、QMC5883P
-- **接收机**：PPM、SBUS、IBUS、CRSF / ELRS
-- **电调协议**：PWM、BRUSHED、ONESHOT125、ONESHOT42、MULTISHOT、DSHOT150、DSHOT300、DSHOT600
-- **GPS**：M8、M9、F9、M10（双频，星座可通过 CLI 配置）
-- **其它协议**：MSP、CLI、BLACKBOX、ESPNOW
+**ESP-FC 是纯姿态自稳 + 手动油门**：
 
-## 📚 必读文档
+- **松杆不会悬停** —— 姿态会稳平，但保持水平速度继续飘
+- **松油门就掉高度**
+- 无 GPS / 气压计 / 测距 ⇒ **无定高、无定点、无航点**
 
-> [!IMPORTANT]  
-> 开始之前，**请先仔细阅读以下文档**。
+> 首次带桨请：**空旷场地、装保护圈、留足退让空间、低空慢速**。  
+> 推杆机身应**向前倾**；方向反了要改混控顺序，**不要靠改 PID 修正**。
 
-| 文档                                      | 内容          |
-| --------------------------------------- | ----------- |
-| [配置指南](Docs/setup.md)                   | 完整配置流程，新手必读 |
-| [接线说明](Docs/wiring.md)                  | 引脚定义与接线图    |
-| [CLI 命令参考](Docs/cli.md)                 | 全部命令行指令与参数  |
-| [Wi-Fi 与 ESP-NOW 接收机](Docs/wireless.md) | 无线连接配置      |
+### 故障速查
 
-开发相关：[开发指南](Docs/development.md) · [内部设计](Docs/internal/)
+| 现象           | 根因                                 | 处理                               |
+| ------------ | ---------------------------------- | -------------------------------- |
+| 地面站搜不到板子     | env 选错（Flash/PSRAM 不匹配）            | 换 `_n4r2` 或 `esp32s3_yaokun` 重烧  |
+| 烧录后停在下载模式    | USB CDC 没枚举 COM                    | 按住 BOOT 复位；或改用 UART0             |
+| 上电无任何串口输出    | Flash/PSRAM 参数错 → panic            | 对照上面选型表                          |
+| **四个电机都不转**  | **漏 `-DESPFC_DEV_PRESET_BRUSHED`** | 加上重新编译                           |
+| 只有一个电机转      | 电机顺序 / 接线错                         | 应为 6/5/15/16                     |
+| 电机全转但力度极小    | 电压采样系数错 → 误判低压                     | 核对 `ESPFC_ADC_SCALE = 2.0f/4096` |
+| 显示电压只有一半     | 同上                                 | 同上                               |
+| 姿态不动 / 传感器失联 | IMU 片选错（V1=17 / V2=42）             | 改 `ESPFC_SPI_CS_GYRO` 重编         |
+| **蜂鸣器常鸣**    | **烧的是上游 `esp32s3` 固件**             | 改烧 `esp32s3_yaokun`              |
+| SBUS 无信号     | 接收机没供电 / 未共地                       | SBUS 是单线：信号到 GPIO1 + 共地          |
+| ELRS 接收机无数据  | 协议没设成 CRSF                         | 地面站改 UART2 协议为 CRSF              |
+| 插桨后机身剧烈抖动    | 电机噪音进 IMU                          | `set gyro_notch_count 3`         |
+| 校准后姿态仍飘      | 校准没真正采到六面                          | 重跑校准，逐面静止 ≥2 秒                   |
 
-遇到问题可加入上游 **[Discord 频道](https://discord.gg/jhyPPM5UEH)** 获取帮助。
+### 配套文档
 
-## 🛠️ 开发环境
+- 📘 **[技术说明书（HTML 完整版）](Docs/ESP-FC技术说明书.html)** —— 架构、控制回路、协议、构建体系全解
+- 🔧 **[耀坤 S3 适配说明](Docs/耀坤S3适配说明.md)** —— 每处改动的根因与验证方法
+- 🔧 **[固件指纹与烧录说明](Firmware/release/)** —— SHA-256 校验 + 中英文烧录指引
 
-- Visual Studio Code
-- [PlatformIO](https://platformio.org/install/ide?install=vscode) 插件
-- Git
-
-测试用 [Docker](https://www.docker.com/)：
-
-```bash
-cd Firmware
-docker compose run --rm native     # 在容器内跑单元测试
-```
-
-## 📋 开发计划（上游 TODO）
-
-- 定高
-- GPS 导航
-- MS5611 气压计
-- 平衡车控制器
-
-## 📜 开源协议与致谢
-
-- **上游项目**：ESP-FC © [Ramon Lopez](https://github.com/rtlopez) ·  
-  源码仓库 <https://github.com/rtlopez/esp-fc>
-- **许可证**：**MIT License**（完整文本见 [LICENSE](LICENSE)，Copyright (c) 2016 rtlopez）
-- **本整理版**：仅做中文文档与目录整理，**未修改固件逻辑**。
-- **本仓库整理**：耀坤智联 YaoKunSmart · <https://github.com/YaoKunS>
-- **B 站**：<https://space.bilibili.com/3707011699050767>
-
-> ⚠️ 使用、修改、分发本项目时，请保留上游作者署名与 MIT 许可声明。  
-> MIT 许可允许自由使用、修改、分发（含商业用途），但**必须保留版权声明与许可文本**。
-
-## 🙏 赞助上游作者
-
-如果你喜欢这个项目并希望它继续发展，可以支持一下原作者：
-
-- BTC: `1Lopez7yPtbyjfLGe892JfheDFJMMt43tW`
-- LTC: `LV3G3sJxz9AYpDMYUp8e1LCmerFYxVY3ak`
-
-## ⚠️ 免责声明
-
-本项目按"现状"提供，不附带任何担保。在自行焊接与通电前，请务必：
-
-1. 核对 [接线文档](Docs/wiring.md)，确认电压极性与引脚定义
-2. **首次通电务必拆掉桨叶**，避免电机意外转动造成人身伤害
-3. 在空旷场地试飞，遵守当地无人机法规
-
-⚠️ 因使用本项目造成的任何损坏、伤害或损失，作者与本整理方均不承担责任。**风险自负！**
-
----
 
 <div align="center">
 
