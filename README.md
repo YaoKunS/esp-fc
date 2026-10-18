@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛩️ ESP-FC 飞控 · 耀坤复刻版
+# 🛩️ ESP-FC 飞控 · 耀坤整理版
 
 **ESP32 高性能飞控 —— 迷你、低成本、高性能，为业余玩家而生**
 
@@ -20,7 +20,7 @@
 
 ---
 
-> 📌 **本仓库是 [rtlopez/esp-fc](https://github.com/rtlopez/esp-fc) 的中文复刻整理版。**  
+> 📌 **本仓库是 [rtlopez/esp-fc](https://github.com/rtlopez/esp-fc) 的中文整理版。**  
 > 固件源码 100% 保持上游原样（仅调整了目录位置，未改一行代码逻辑），  
 > 本仓库额外提供：中文说明文档、重新规划的目录结构。  
 > 上游项目与作者：[Ramon Lopez](https://github.com/rtlopez) · MIT 许可
@@ -53,10 +53,10 @@ ESP-FC 是一款运行在 **ESP32** 上的开源飞控固件，定位是**迷你
 | **安全保护**          | 失控保护（failsafe）、蜂鸣器、LED、电压监测                                        |
 | **Betaflight 兼容** | 配置工具兼容 v10.10，现有 Betaflight 调参经验可直接套用                              |
 
-## 📁 目录结构（本复刻版重新整理）
+## 📁 目录结构（本整理版重新整理）
 
 > 🔧 **为什么要重整**：上游把 PlatformIO 工程文件、文档、测试、Python 辅助脚本平铺在根目录。  
-> 本复刻版把**固件相关的一律收进 `Firmware/`**，其中包含**完整的 PlatformIO 工程**  
+> 本整理版把**固件相关的一律收进 `Firmware/`**，其中包含**完整的 PlatformIO 工程**  
 > （`platformio.ini` 与 `src/`、`lib/`、`test/`、`bin/` 同级），  
 > 因此**进入 `Firmware/` 后 `pio run` 即可直接编译，零配置改动**。
 
@@ -239,7 +239,7 @@ docker compose run --rm native     # 在容器内跑单元测试
 - **上游项目**：ESP-FC © [Ramon Lopez](https://github.com/rtlopez) ·  
   源码仓库 <https://github.com/rtlopez/esp-fc>
 - **许可证**：**MIT License**（完整文本见 [LICENSE](LICENSE)，Copyright (c) 2016 rtlopez）
-- **本复刻版**：仅做中文文档与目录整理，**未修改固件逻辑**。
+- **本整理版**：仅做中文文档与目录整理，**未修改固件逻辑**。
 - **本仓库整理**：耀坤智联 YaoKunSmart · <https://github.com/YaoKunS>
 - **B 站**：<https://space.bilibili.com/3707011699050767>
 
@@ -261,13 +261,13 @@ docker compose run --rm native     # 在容器内跑单元测试
 2. **首次通电务必拆掉桨叶**，避免电机意外转动造成人身伤害
 3. 在空旷场地试飞，遵守当地无人机法规
 
-⚠️ 因使用本项目造成的任何损坏、伤害或损失，作者与本复刻整理方均不承担责任。**风险自负！**
+⚠️ 因使用本项目造成的任何损坏、伤害或损失，作者与本整理方均不承担责任。**风险自负！**
 
 ---
 
 <div align="center">
 
 **🛩️ ESP-FC** · 由 [Ramon Lopez](https://github.com/rtlopez) 倾力打造 · MIT License  
-· 本中文复刻整理版由 [耀坤智联](https://github.com/YaoKunS) 维护
+· 本中文整理版由 [耀坤智联](https://github.com/YaoKunS) 维护
 
 </div>
