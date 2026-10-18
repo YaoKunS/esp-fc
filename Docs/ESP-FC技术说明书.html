@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>耀坤S3无人机 · ESP-FC 整理版　技术说明书</title>
+<style>
+  :root{
+    --brand:#0f766e; --brand-dark:#0b5a54; --ink:#0f172a; --ink2:#334155;
+    --ink3:#64748b; --line:#e2e8f0; --bg:#ffffff; --bg2:#f8fafc;
+    --code-bg:#0f172a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg2); color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Hiragino Sans GB","Source Han Sans SC",sans-serif;
+    font-size:15px; line-height:1.85; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px 80px; background:var(--bg);
+         box-shadow:0 0 40px rgba(15,23,42,.06);}
+
+  .cover{padding:64px 24px 48px; background:linear-gradient(135deg,#0f172a 0%,#134e4a 55%,#0f766e 130%);
+         color:#fff; margin:0 -24px 40px;}
+  .cover .badge{display:inline-block; background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.25);
+         padding:4px 14px; border-radius:20px; font-size:12.5px; letter-spacing:.5px; margin-bottom:20px;}
+  .cover h1{margin:0 0 12px; font-size:40px; font-weight:800; letter-spacing:1px; line-height:1.3;}
+  .cover .sub{font-size:16.5px; color:#cbd5e1; margin-bottom:28px; font-weight:300;}
+  .cover .facts{display:flex; flex-wrap:wrap; gap:10px 30px; font-size:13.5px; color:#e2e8f0;
+         border-top:1px solid rgba(255,255,255,.16); padding-top:20px;}
+  .cover .facts b{color:#fff; font-weight:600;}
+
+  .toc{background:var(--bg2); border:1px solid var(--line); border-radius:12px;
+       padding:26px 30px; margin-bottom:48px;}
+  .toc h2{margin:0 0 16px; font-size:17px; color:var(--brand); border:0; padding:0;}
+  .toc ol{columns:2; column-gap:40px; margin:0; padding-left:22px; font-size:14px;}
+  .toc li{margin:5px 0; break-inside:avoid;}
+  .toc a{color:var(--ink2); text-decoration:none;}
+  .toc a:hover{color:var(--brand);}
+  .toc .d{font-size:12px; color:var(--ink3); margin-left:6px;}
+
+  h2{font-size:25px; font-weight:700; color:var(--brand); margin:56px 0 20px;
+     padding-bottom:12px; border-bottom:3px solid var(--brand); letter-spacing:.5px;}
+  h3{font-size:19px; font-weight:700; color:var(--ink); margin:36px 0 14px;
+     padding-left:13px; border-left:5px solid var(--brand);}
+  h4{font-size:16px; font-weight:700; color:var(--ink2); margin:24px 0 10px;}
+  p{margin:12px 0;}
+
+  code{background:#f1f5f9; color:#b91c1c; padding:2px 7px; border-radius:4px;
+       font-family:"Cascadia Mono","Consolas","Courier New",monospace; font-size:13.5px;}
+  pre{background:var(--code-bg); color:#e2e8f0; padding:18px 22px; border-radius:10px;
+      overflow-x:auto; font-size:13.5px; line-height:1.75;
+      font-family:"Cascadia Mono","Consolas","Courier New",monospace;}
+  pre code{background:none; color:inherit; padding:0; font-size:13.5px;}
+  .note{background:#eff6ff; border-left:5px solid #2563eb; padding:14px 20px; border-radius:0 8px 8px 0; margin:18px 0;}
+  .warn{background:#fff7ed; border-left:5px solid #ea580c; padding:14px 20px; border-radius:0 8px 8px 0; margin:18px 0;}
+  .danger{background:#fef2f2; border-left:5px solid #dc2626; padding:14px 20px; border-radius:0 8px 8px 0; margin:18px 0;}
+  .ok{background:#f0fdf4; border-left:5px solid #16a34a; padding:14px 20px; border-radius:0 8px 8px 0; margin:18px 0;}
+
+  table{width:100%; border-collapse:collapse; margin:18px 0; font-size:14px;}
+  th{background:#f1f5f9; color:var(--ink); font-weight:700; padding:11px 12px;
+     border:1px solid var(--line); text-align:left;}
+  td{padding:10px 12px; border:1px solid var(--line); vertical-align:top;}
+  tbody tr:nth-child(even){background:#fcfdfe;}
+  table.tight td, table.tight th{padding:7px 10px; font-size:13.5px;}
+  td code{white-space:nowrap;}
+
+  ul,ol{padding-left:26px;} li{margin:6px 0;}
+
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:20px 0;}
+  .card{background:var(--bg2); border:1px solid var(--line); border-radius:10px; padding:18px 22px;}
+  .card h5{margin:0 0 8px; font-size:14.5px; color:var(--brand); font-weight:700;}
+  .card p{margin:0; font-size:13.5px; color:var(--ink2); line-height:1.7;}
+
+  .step{display:flex; gap:16px; margin:14px 0; align-items:flex-start;}
+  .step .no{flex:0 0 34px; height:34px; border-radius:50%; background:var(--brand); color:#fff;
+       display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px;}
+  .step .tx{flex:1;}
+  .step .tx b{display:block; margin-bottom:2px; color:var(--ink);}
+  .step .tx span{font-size:13.5px; color:var(--ink3);}
+
+  .flow{display:flex; flex-direction:column; gap:0; margin:24px 0;}
+  .fnode{background:#fff; border:2px solid var(--line); border-radius:10px; padding:14px 18px;
+         display:flex; align-items:center; gap:14px;}
+  .fnode .tag{flex:0 0 auto; background:var(--brand); color:#fff; font-size:12px; font-weight:700;
+         padding:3px 10px; border-radius:12px;}
+  .fnode .ttl{font-weight:700; font-size:14.5px;}
+  .fnode .desc{font-size:13px; color:var(--ink3); margin-left:auto; text-align:right; max-width:52%;}
+  .farrow{height:22px; display:flex; justify-content:center; align-items:center; color:var(--ink3); font-size:16px;}
+  .fnode.hl{border-color:var(--brand); background:#fef2f2;}
+
+  footer{margin-top:70px; padding-top:26px; border-top:2px solid var(--line);
+         text-align:center; color:var(--ink3); font-size:13px; line-height:2;}
+
+  @media print{
+    body{background:#fff;} .wrap{box-shadow:none; max-width:100%; padding:0;}
+    .toc{page-break-after:always;}
+    h2{page-break-after:avoid;} h3{page-break-after:avoid;}
+    table,pre,.fnode{page-break-inside:avoid;}
+    .cover{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+    *{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  }
+  @media (max-width:760px){
+    .grid2{grid-template-columns:1fr;} .toc ol{columns:1;}
+    .cover h1{font-size:28px;}
+    .fnode{flex-wrap:wrap;} .fnode .desc{max-width:100%; text-align:left; margin-left:0;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="cover">
+  <span class="badge">开源飞控 ESP-FC · 耀坤 S3 硬件适配版 v1.0</span>
+  <h1>耀坤S3无人机 · ESP-FC 整理版</h1>
+  <div class="sub">MSP 协议全兼容地面站　·　8520 空心杯有刷电机适配　·　Betaflight 配置器直接识别</div>
+  <div class="facts">
+    <span>主控　<b>ESP32-S3</b>（R8N8 / N4R2）</span>
+    <span>内核　<b>ESP-FC</b>（(c) Ramon Lopez，MIT）</span>
+    <span>通信　<b>MSP v2 / ESP-NOW / Wi-Fi</b></span>
+    <span>电机　<b>8520 空心杯有刷 · PWM</b></span>
+    <span>地面站　<b>Betaflight / Cleanflight Configurator</b></span>
+    <span>仓库　<b>github.com/YaoKunS/esp-fc</b></span>
+  </div>
+</div>
+
+<div class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#s1">项目定位</a><span class="d">它是什么，与上游什么关系</span></li>
+    <li><a href="#s2">硬件规格</a><span class="d">模组选型与全部引脚</span></li>
+    <li><a href="#s3">为什么必须重做引脚</a><span class="d">上游 S3 模板为何完全不能用</span></li>
+    <li><a href="#s4">8520 有刷电机适配</a><span class="d">🔴 本次最关键的一个决定</span></li>
+    <li><a href="#s5">软件架构</a><span class="d">文件职责与主循环</span></li>
+    <li><a href="#s6">控制回路</a><span class="d">串级 PID 与混控</span></li>
+    <li><a href="#s7">传感器链路</a><span class="d">MPU6050 / MPU6500 双通路</span></li>
+    <li><a href="#s8">MSP 协议与地面站</a><span class="d">配置器如何识别本板</span></li>
+    <li><a href="#s9">安全机制</a><span class="d">解锁门控与失联保护</span></li>
+    <li><a href="#s10">固件构建体系</a><span class="d">PlatformIO 环境与分区表</span></li>
+    <li><a href="#s11">编译与烧录</a><span class="d">从零到上电的全流程</span></li>
+    <li><a href="#s12">CLI 命令手册</a><span class="d">串口上直接敲命令</span></li>
+    <li><a href="#s13">故障排查</a><span class="d">现象 → 根因 → 处理</span></li>
+    <li><a href="#s14">飞行能力边界</a><span class="d">能做什么、不能做什么</span></li>
+    <li><a href="#s15">与上游差异总表</a><span class="d">一行行说清改了什么</span></li>
+  </ol>
+</div>
+
+<h2 id="s1">一、项目定位</h2>
+
+<p>ESP-FC 是一款运行在 <b>ESP32</b> 上的开源飞控固件，定位是<strong>迷你、低成本、高性能</strong>。
+它最大的特色是<strong>协议兼容</strong>：固件实现的是标准的
+<b>Betaflight / Cleanflight MSP 协议 v2</b>，所以市面上的
+<b>Betaflight Configurator</b> 和 <b>Cleanflight Configurator</b>
+可以直接连上、直接识别、直接调参 —— 不需要专用上位机。</p>
+
+<p>本仓库是 <a href="https://github.com/rtlopez/esp-fc">rtlopez/esp-fc</a> 的
+<strong>耀坤整理版 + 耀坤 S3 硬件适配</strong>。目标是让耀坤自研的 S3 四轴
+（配 8520 空心杯电机）用上这套成熟的开源内核。</p>
+
+<div class="grid2">
+  <div class="card">
+    <h5>上游原版（master）</h5>
+    <p>ESP-FC 0.3.0 完整源码，一行未改。引脚定义面向 Lolin S3 Mini 等通用模板板，
+       支持 ESP32 / S2 / S3 / C3 / ESP8266 / RP2040 / RP2350 七种平台。</p>
+  </div>
+  <div class="card">
+    <h5>耀坤版（本分支）</h5>
+    <p>在上游基础上<strong>新增</strong>独立板级定义
+       <code>TargetESP32s3YaoKun.h</code> 与独立编译环境
+       <code>esp32s3_yaokun</code>。算法层零改动。</p>
+  </div>
+</div>
+
+<div class="ok">
+<b>为什么"算法层零改动"这么重要？</b><br>
+因为飞控里最容易出事的地方不是引脚，是<b>姿态解算、角速度滤波、混控顺序、failsafe 判据</b>。
+这些逻辑上游已经在大量机型上验证过。<strong>我们只换"引脚和电机协议"，
+把所有经过验证的数学部分原封不动留下</strong> —— 这是本次适配风险最低的路径。
+</div>
+
+<h2 id="s2">二、硬件规格</h2>
+
+<h3>2.1 主控模组（两种，引脚相同）</h3>
+
+<table class="tight">
+<tr><th>项目</th><th>立创 ESP32-S3-R8N8 ★默认</th><th>ESP32S3 Supermini N4R2</th></tr>
+<tr><td>Flash</td><td><b>8 MB</b></td><td><b>4 MB</b></td></tr>
+<tr><td>PSRAM</td><td>8 MB <b>OPI（八线）</b></td><td>2 MB <b>QIO（四线）</b></td></tr>
+<tr><td>分区表</td><td><code>default_8MB.csv</code></td><td><code>partitions_4M_nota.csv</code></td></tr>
+<tr><td><code>memory_type</code></td><td><code>qio_opi</code></td><td><code>qio</code></td></tr>
+<tr><td>编译环境</td><td><code>esp32s3_yaokun</code></td><td><code>esp32s3_yaokun_n4r2</code></td></tr>
+</table>
+
+<div class="danger">
+<b>🔴 选错的两种死法（都已经踩过）</b><br>
+<strong>N4R2 刷了 R8N8 参数</strong> → app 超出 4MB 分区边界 + OPI 初始化失败
+→ 芯片上电直接 <code>panic</code>，<strong>没有任何串口输出</strong>，地面站完全搜不到板子。<br>
+<strong>R8N8 刷了 N4R2 参数</strong> → 能启动，但 PSRAM 类型填 <code>qio</code> 而实际是 OPI
+→ 运行一段时间后随机重启。<br>
+看模组丝印即可判断：<code>R8N8</code> = 8+8，<code>N4R2</code> = 4+2。
+</div>
+
+<h3>2.2 完整引脚表（逐行取自《耀坤S3无人机引脚定义.xlsx》）</h3>
+
+<h4>电机输出</h4>
+<table class="tight">
+<tr><th>通道</th><th>GPIO</th><th>PCB 丝印</th><th>位置</th><th>上游模板值</th></tr>
+<tr><td><code>ESPFC_OUTPUT_0</code></td><td><b>6</b></td><td>MOT1_FR</td><td>右前 FR</td><td>39 ❌</td></tr>
+<tr><td><code>ESPFC_OUTPUT_1</code></td><td><b>5</b></td><td>MOT2_RR</td><td>右后 RR</td><td>40 ❌</td></tr>
+<tr><td><code>ESPFC_OUTPUT_2</code></td><td><b>15</b></td><td>MOT3_RL</td><td>左后 RL</td><td>41 ❌</td></tr>
+<tr><td><code>ESPFC_OUTPUT_3</code></td><td><b>16</b></td><td>MOT4_FL</td><td>左前 FL</td><td>42 ❌</td></tr>
+</table>
+
+<div class="danger">
+<b>🔴 为什么这四个数字是"要命"的</b><br>
+上游模板把 <b>GPIO39 / 40 / 41 / 42</b> 当电机脚。而在耀坤板上：
+<b>39 = 蜂鸣器</b>、<b>41 = 红灯</b>、<b>42 = V2 板的 MPU6500 片选</b>。<br>
+不改的后果不是"电机不转"这么轻 —— 是<b>蜂鸣器常鸣 + IMU 片选被电平驱动乱跳</b>，
+读出来的姿态完全是噪声。
+</div>
+
+<h4>IMU（六轴）</h4>
+<table class="tight">
+<tr><th>功能</th><th>GPIO</th><th>说明</th></tr>
+<tr><td>SPI_SCK</td><td><b>38</b></td><td>xlsx 第 6 行；也可挂光流</td></tr>
+<tr><td>SPI_MOSI</td><td><b>18</b></td><td>xlsx 第 5 行</td></tr>
+<tr><td>SPI_MISO</td><td><b>21</b></td><td>xlsx 第 4 行</td></tr>
+<tr><td><b>GYRO_CS</b></td><td><b>17</b></td><td>🔴 <b>V1 板实测值</b>；V2 板按表为 42</td></tr>
+<tr><td>I2C_SCL</td><td><b>8</b></td><td>🔴 <b>SCL=8、SDA=9，别写反</b></td></tr>
+<tr><td>I2C_SDA</td><td><b>9</b></td><td>MPU6050 / BMP280 / 磁力计</td></tr>
+<tr><td>BARO_CS</td><td>−1</td><td>本板未接气压计</td></tr>
+<tr><td>MPU6500_INT</td><td>−1（未用）</td><td>GPIO40，本版未启用</td></tr>
+</table>
+
+<div class="note">
+<b>换 V1 / V2 板只需改一行</b><br>
+两个版本只差 <code>ESPFC_SPI_CS_GYRO</code> 这一个引脚（<code>17</code> ↔ <code>42</code>），
+SCK / MOSI / MISO 两版完全一致。不要去动其它三个。
+</div>
+
+<h4>遥控与串口</h4>
+<table class="tight">
+<tr><th>用途</th><th>GPIO</th><th>说明</th></tr>
+<tr><td>SBUS 输入</td><td><b>1</b></td><td>xlsx EXT01；同时设为 <code>ESPFC_INPUT_PIN</code></td></tr>
+<tr><td>ELRS 预留 TX</td><td><b>11</b></td><td>飞控 → 接收机</td></tr>
+<tr><td>ELRS 预留 RX</td><td><b>12</b></td><td>接收机 → 飞控</td></tr>
+<tr><td>UART0（MSP）</td><td><b>43 / 44</b></td><td>地面站主串口，115200 8N1</td></tr>
+<tr><td>USB CDC</td><td>—</td><td>S3 原生 USB，枚举为虚拟 COM</td></tr>
+</table>
+
+<div class="warn">
+<b>⚠️ ELRS 接收机输出的是 CRSF，不是 SBUS</b><br>
+UART2（11/12）虽然已按 xlsx 定义好，但<b>必须在地面站里把该串口协议改成 CRSF</b> 才能用。
+第一次上手建议直接用 SBUS 接收机（GPIO1 单线），少一个变量。
+</div>
+
+<h4>其它外设</h4>
+<table class="tight">
+<tr><th>功能</th><th>GPIO</th><th>说明</th></tr>
+<tr><td>VBAT 采样</td><td><b>2</b></td><td>1:2 分压 ⇒ <code>ESPFC_ADC_SCALE = 2.0f/4096</code></td></tr>
+<tr><td>蜂鸣器</td><td><b>39</b></td><td>有源蜂鸣器，给电即响</td></tr>
+<tr><td>蓝灯</td><td><b>14</b></td><td>ESP-FC 只驱动单色灯；红 41 / 绿 7 未用</td></tr>
+<tr><td>板载 LED</td><td>48</td><td>未驱动</td></tr>
+<tr><td>按键</td><td>−1</td><td>本板无独立按键，配对改用 CLI</td></tr>
+</table>
+
+<div class="danger">
+<b>🔴 电池电压系数填错会"咬人"</b><br>
+VBAT 经 <b>1:2</b> 分压到 GPIO2，即 <code>Vbat = Vadc × 2</code>。
+所以 <code>ESPFC_ADC_SCALE</code> 必须填 <code>2.0f / 4096</code>。<br>
+若沿用上游 ESP32S3 的 <code>3.3f/4096</code>，地面站显示的电压<b>只有真实值的一半</b>，
+结果是：<b>低压告警永远不响</b> —— 这比报错更危险，因为你看不出来它错了。
+</div>
+
+<h3>2.3 S3 硬件禁区</h3>
+
+<table class="tight">
+<tr><th>引脚</th><th>原因</th><th>本板用途</th></tr>
+<tr><td><b>GPIO26 ~ GPIO37</b></td><td>内部 Flash / PSRAM</td><td>❌ 绝对不能碰，占用即开不了机</td></tr>
+<tr><td>GPIO0 / 3 / 45 / 46</td><td>启动 strapping 脚（决定 boot 模式）</td><td>GPIO3 = I2C1_SDA（VL53L1X）</td></tr>
+<tr><td>GPIO19 / 20</td><td>USB JTAG</td><td>❌ 不用</td></tr>
+<tr><td>GPIO43 / 44</td><td>本板唯一的 MSP 串口</td><td>UART0</td></tr>
+</table>
+
+<p><code>TargetESP32s3YaoKun.h</code> 里<b>每一条引脚定义都写了中文注释和 xlsx 来源行号</b>。
+改之前先读注释再动手，能省掉大量"改了不生效"的排查时间。</p>
+
+<h2 id="s3">三、为什么必须重做引脚</h2>
+
+<h3>3.1 上游 ESP32-S3 模板是什么</h3>
+
+<p>ESP-FC 0.3.0 的 <code>Target/TargetESP32s3.h</code> 是给
+<strong>Lolin S3 Mini 这类通用模板板</strong>写的。它假定的是一块"标准 S3 开发板 + 外接电调"，
+所有引脚都是方便记忆的占位值：</p>
+
+<pre><code>// 上游 TargetESP32s3.h（原样，一行未改）
+#define ESPFC_INPUT_PIN 6        // ppm
+#define ESPFC_OUTPUT_0 39
+#define ESPFC_OUTPUT_1 40
+#define ESPFC_OUTPUT_2 41
+#define ESPFC_OUTPUT_3 42
+#define ESPFC_SPI_0_SCK 12
+#define ESPFC_SPI_0_MOSI 11
+#define ESPFC_SPI_0_MISO 13
+#define ESPFC_SPI_CS_GYRO 8
+#define ESPFC_I2C_0_SCL 10
+#define ESPFC_I2C_0_SDA 9
+#define ESPFC_BUZZER_PIN 5
+#define ESPFC_ADC_VBAT_PIN 1
+#define ESPFC_LED_PIN -1</code></pre>
+
+<p>这套值跟耀坤 S3 的 PCB 布线<b>几乎条条对不上</b>。烧上去会发生什么：</p>
+
+<div class="danger">
+<ol>
+<li><b>四个电机一个都不转</b> —— 驱动 39/40/41/42，而电调接在 6/5/15/16</li>
+<li><b>蜂鸣器常鸣</b> —— GPIO39 被当成电机 PWM 输出</li>
+<li><b>IMU 读不到</b> —— SPI 片选是 8、时钟是 12，而板上是 17/38</li>
+<li><b>电池电压读数偏差一倍</b> —— ADC 接在 1 而板上是 2，且分压系数不同</li>
+<li>最糟的是 <b>39/40/41/42 中 GPIO42 还是 V2 板的 IMU 片选</b>，
+被高频 PWM 驱动后 IMU 数据彻底是噪声</li>
+</ol>
+</div>
+
+<h3>3.2 我们的做法：新增，不修改</h3>
+
+<p>没有直接改 <code>TargetESP32s3.h</code>，而是<b>新建</b>一个文件，理由有三：</p>
+
+<div class="grid2">
+  <div class="card"><h5>① 可回归</h5><p>上游 <code>[env:esp32s3]</code> 保持原样，
+  随时能编一版做对比，定位"是我的适配错了还是上游变了"。</p></div>
+  <div class="card"><h5>② 可合并</h5><p>将来同步上游新版本时，
+  <code>TargetESP32s3.h</code> 大概率会被改动；我们只在自己的文件里收敛冲突。</p></div>
+  <div class="card"><h5>③ 可读</h5><p>新人打开 <code>TargetESP32s3YaoKun.h</code>，
+  一眼就知道这块板长什么样，不用去猜 39 是电机还是蜂鸣器。</p></div>
+</div>
+
+<pre><code>// Firmware/lib/Espfc/src/Target/Target.h —— 全部改动只有这3 行
+#if defined(ESPFC_TARGET_YAOKUN)          // ← 耀坤智联新增
+  #include "TargetESP32s3YaoKun.h"
+#elif defined(ESP32C3)
+#include "TargetESP32c3.h"
+...
+#elif defined(ESP32S3)
+#include "TargetESP32s3.h"               // ← 上游原版，保持不变
+#endif</code></pre>
+
+<div class="warn">
+<b>为什么 <code>ESPFC_TARGET_YAOKUN</code> 的判断要放在 <code>ESP32S3</code> 前面？</b><br>
+因为该宏<strong>同时</strong>定义了 <code>ESP32S3</code>（芯片系列）和板级选择。
+如果放在后面，条件永远轮不到它，编译会静默使用上游引脚 —— 烧上去才发现问题，
+代价是拆桨、上电、试飞，全白费。
+</div>
+
+<h2 id="s4">四、8520 空心杯电机适配</h2>
+
+<div class="danger">
+<b>🔴 这是本次适配唯一一个"不编译就完全飞不起来"的决定，单独一节讲。</b>
+</div>
+
+<h3>4.1 问题本质</h3>
+
+<p>ESP-FC 面向无刷四轴，<strong>默认输出协议是 DShot300</strong>。
+DShot 是一套<b>数字协议</b>：每帧先把线拉低再拉高，用占空比编码 0 / 1，
+中间还会插入 CRC。它需要<b>智能电调（ESC）</b>里有解码芯片才听得懂。</p>
+
+<p>8520 空心杯电机配的是<b>廉价有刷电调</b>。所谓"电调"其实就是一个
+<b>开关 + 二极管 + 换向器</b>，它只认传统的 <b>PWM 脉宽</b>（1000~2000 µs）。</p>
+
+<div class="fnode hl"><span class="tag">类比</span>
+  <span class="ttl">给门铃贴张纸条写"DingDong"</span>
+  <span class="desc">有刷电调收到 DShot 帧，理解为"有电=通"，全程无响应 → 四电机全停转</span>
+</div>
+
+<h3>4.2 解法：<code>-DESPFC_DEV_PRESET_BRUSHED</code></h3>
+
+<p>这个宏让 <code>ModelConfig.h</code> 在初始化时做三件事：</p>
+
+<pre><code>// ModelConfig.h（约 1160 行）
+#ifdef ESPFC_DEV_PRESET_BRUSHED
+      output.protocol = ESC_PROTOCOL_BRUSHED;   // 协议换成 PWM
+      output.async = true;                       // 异步（LEDC 硬件）输出，不占 CPU
+      output.rate = 3000;                        // 刷新率 3 kHz
+#endif</code></pre>
+
+<p>同时，我们在 <code>TargetESP32s3YaoKun.h</code> 里
+<b>故意没有</b>定义 <code>ESPFC_DSHOT_TELEMETRY</code>
+（上游 <code>TargetESP32s3.h</code> 里有那行）：</p>
+
+<div class="note">
+DShot 双向回读（<i>bidirectional DShot</i>）能让地面站显示实时转速，
+但它<b>只对智能电调有意义</b>。对 PWM 电调，它会白白占用一路 DMA 与一个串口外设，
+换来的功能是永远不触发的数据。
+</div>
+
+<h3>4.3 验证</h3>
+
+<div class="step"><div class="no">1</div><div class="tx">
+<b>地面站 → 电机测试</b><span>不装桨，接通电池，四个电机必须全部响</span></div></div>
+<div class="step"><div class="no">2</div><div class="tx">
+<b>只有一个响</b><span>检查 <code>ESPFC_OUTPUT_0..3</code> 顺序与电调接线（应为 6/5/15/16）</span></div></div>
+<div class="step"><div class="no">3</div><div class="tx">
+<b>全都不响</b><span>检查编译命令是否带 <code>-DESPFC_DEV_PRESET_BRUSHED</code></span></div></div>
+
+<h2 id="s5">五、软件架构</h2>
+
+<h3>5.1 目录结构</h3>
+
+<pre><code>Firmware/
+├── platformio.ini                  # 编译环境（上游 + 耀坤新增两个 env）
+├── partitions_4M_nota.csv          # N4R2 4MB 单分区表（无 OTA）
+├── src/
+│   └── main.cpp                    # 入口：初始化 + 主循环
+├── lib/
+│   ├── Espfc/src/
+│   │   ├── Espfc.h                # 总装配
+│   │   ├── Model.h/.cpp           # 设备模型（各 Device 的编排者）
+│   │   ├── ModelConfig.h          # ★ 参数默认值表（引脚默认值也在这）
+│   │   ├── Target/                # ★ 板级引脚定义（本适配核心）
+│   │   │   ├── Target.h           # 按平台/宏分发（+3 行耀坤分支）
+│   │   │   ├── TargetESP32s3.h    # 上游原版（未改）
+│   │   │   └── TargetESP32s3YaoKun.h  # ★★ 新增：耀坤 S3
+│   │   ├── Device/                # 各外设：IMU / MotorOutput / Receiver / Battery…
+│   │   ├── Math/                  # 向量、四元数、滤波
+│   │   ├── Estimator/             # 姿态解算（AHRS）
+│   │   ├── Msp/                   # ★ MSP 协议栈（地面站兼容的关键）
+│   │   └── Connect/               # CLI / WiFi / ESP-NOW
+│   ├── EscDriver/src/             # 电机输出底层（LEDC / DShot / PWM）
+│   ├── AHRS/src/                  # 姿态融合算法（Madgwick / Mahony / Kalman / RTQF）
+│   ├── EspWire/src/               # 软件 I2C 实现
+│   ├── Gps/src/                   # GPS 支持（未启用）
+│   └── betaflight/src/            # Betaflight 兼容层（参数命名、滤波）
+├── bin/                           # 打包与格式检查脚本
+├── docs/                          # 上游文档
+└── test/                          # PlatformIO 单元测试</code></pre>
+
+<h3>5.2 主循环</h3>
+
+<p>ESP-FC 的主循环在 <code>src/main.cpp</code>，结构极简：</p>
+
+<pre><code>int main()
+{
+  device.initBoard();      // 按 ModelConfig 的引脚默认值初始化所有外设
+  device.init();           // 加载参数（若已保存则用保存值覆盖默认值）
+  while (1) {
+    device.step();         // ① 读传感器 ② 姿态解算 ③ PID ④ 混控 ⑤ 输出 PWM/DSHOT
+    device.await();        // FreeRTOS 让出 CPU 给 Wi-Fi / USB 任务
+  }
+}</code></pre>
+
+<p>所有实际工作都在 <code>Device::step()</code> 里串起来。S3 是双核的，
+<code>device.await()</code> 让出核心后，Wi-Fi / ESP-NOW / USB 任务可以在另一核上跑，
+这也是为什么我们的 Target 里明确<b>不</b>定义单核宏。</p>
+
+<h2 id="s6">六、控制回路</h2>
+
+<p>ESP-FC 用的是标准的<b>串级 PID</b>，与 Betaflight 同构：</p>
+
+<div class="flow">
+  <div class="fnode"><span class="tag">① 传感器</span>
+    <span class="ttl">陀螺仪角速度 + 加速度计</span>
+    <span class="desc">MPU6500(SPI) 或 MPU6050(I2C)，SPI 可到 4 kHz</span></div>
+  <div class="farrow">↓</div>
+  <div class="fnode"><span class="tag">② 滤波</span>
+    <span class="ttl">低通 + 陷波（可动态）</span>
+    <span class="desc">有刷电机噪音大，插桨后建议开 3 组陷波</span></div>
+  <div class="farrow">↓</div>
+  <div class="fnode"><span class="tag">③ 姿态</span>
+    <span class="ttl">AHRS 融合出四元数</span>
+    <span class="desc">Madgwick / Mahony / Kalman / RTQF，互补滤波类</span></div>
+  <div class="farrow">↓</div>
+  <div class="fnode hl"><span class="tag">④ PID</span>
+    <span class="ttl">角度环 → 角速度环（串级）</span>
+    <span class="desc">外环给角度目标，内环跟角速度，比单环稳得多</span></div>
+  <div class="farrow">↓</div>
+  <div class="fnode"><span class="tag">⑤ 混控</span>
+    <span class="ttl">四电机分配 + 油门曲线</span>
+    <span class="desc">本板为 QUAD-X（默认）</span></div>
+  <div class="farrow">↓</div>
+  <div class="fnode hl"><span class="tag">⑥ 输出</span>
+    <span class="ttl">PWM / DShot 帧</span>
+    <span class="desc">★ 本板走 PWM(GPIO 6/5/15/16)，异步 LEDC，3 kHz</span></div>
+</div>
+
+<h3>6.1 与 Betaflight 参数的对应</h3>
+
+<p>因为实现了 MSP 协议，配置器里调的所有 PID / 滤波 / 电机参数
+<b>都是 Betaflight 的标准命名</b>，不用重新学：</p>
+
+<table class="tight">
+<tr><th>Betaflight 项</th><th>含义</th><th>本板建议初值</th></tr>
+<tr><td>PID Profile</td><td>角度环/速率环 PID</td><td>先用默认，别乱调</td></tr>
+<tr><td>Gyro LP Filter</td><td>陀螺低通截止</td><td>默认；有刷噪音大可降到 <code>60 Hz</code></tr></tr>
+<tr><td>Dyn Notch Count</td><td>动态陷波组数</td><td><b>插桨后设 3</b></td></tr>
+<tr><td>Motor Min/Max</b></td><td>电机端点</td><td>先用默认，地面站电机测试校准</td></tr>
+<tr><td>Motor Output</td><td>输出协议</td><td>应显示 <b>PWM / Brushed</b></td></tr>
+</table>
+
+<h2 id="s7">七、传感器链路</h2>
+
+<h3>7.1 双通路设计</h3>
+
+<p>ESP-FC 同时支持 SPI 与 I2C 两种 IMU 总线，由 <code>ModelConfig</code> 在启动时探测。
+耀坤板两种都能用：</p>
+
+<table class="tight">
+<tr><th>IMU 芯片</th><th>总线</th><th>SDA/SCL 或 SCK/MOSI/MISO</th><th>片选</th><th>最高速率</th></tr>
+<tr><td>MPU6500</td><td>SPI</td><td>38 / 18 / 21</td><td><b>17</b></td><td>4000 Hz</td></tr>
+<tr><td>MPU6050</td><td>I2C</td><td>SDA <b>9</b> / SCL <b>8</b></td><td>—</td><td>2000 Hz</td></tr>
+</table>
+
+<div class="warn">
+<b>⚠️ SCL / SDA 千万别写反</b><br>
+SDA 是 <b>GPIO9</b>，SCL 是 <b>GPIO8</b>。写成 <code>SCL 9 / SDA 8</code> 的后果是
+I2C 完全不通 —— 而且现象很迷惑：有时能"碰巧"读到，因为 I2C 是"时钟由主机拉低、
+数据由主机拉高"的单线时序，SDA/SCL 接反时 ACK 有时仍能回来。
+<br>
+<b>同一条教训在 Flix 工程也踩过一次</b> —— 两个项目、两块板、同一个坑，值得单独记一笔。
+</div>
+
+<h3>7.2 常见故障：IMU 读不到</h3>
+
+<p>按这个顺序排查，90% 的问题在前两步：</p>
+
+<div class="step"><div class="no">1</div><div class="tx">
+<b>确认板型版本</b><span>V1 板 CS=<code>17</code>；V2 板 CS=<code>42</code>。改错必然读不到</span></div></div>
+<div class="step"><div class="no">2</div><div class="tx">
+<b>确认总线</b><span>6500 走 SPI、6050 走 I2C。插错总线 = 完全没数据</span></div></div>
+<div class="step"><div class="no">3</div><div class="tx">
+<b>确认接线</b><span>SPI 还需 MISO/MOSI/SCK/CS 四根全接；I2C 需共地</span></div></div>
+<div class="step"><div class="no">4</div><div class="tx">
+<b>确认滤波设置</b><span>把 Gyro LP Filter 拉高会"看起来像没信号"，先恢复默认</span></div></div>
+
+<h2 id="s8">八、MSP 协议与地面站</h2>
+
+<p>这是 ESP-FC 相比 Flix 那类自研飞控最大的实用优势：
+<b>用现成的 Betaflight Configurator</b>。</p>
+
+<h3>8.1 支持的地面站</h3>
+
+<table class="tight">
+<tr><th>地面站</th><th>支持</th><th>说明</th></tr>
+<tr><td>Betaflight Configurator</td><td>✅</td><td>首选。参数最全，UI 最新</td></tr>
+<tr><td>Cleanflight Configurator</td><td>✅</td><td>老牌地面站，兼容</td></tr>
+<tr><td>ELRS LUA 脚本 / OSD</td><td>✅</td><td>需 CRFLua 飞控协议支持</td></tr>
+<tr><td>Betaflight 黑盒子分析</td><td>✅</td><td>需在 CLI 里开 Blackbox</td></tr>
+</table>
+
+<h3>8.2 连接方式（三选一）</h3>
+
+<div class="grid2">
+  <div class="card"><h5>① UART0（推荐）</h5>
+    <p>GPIO43 = TX、GPIO44 = RX，115200 8N1。<br>
+    刷完固件第一次上电就能看到日志，最适合排查问题。</p></div>
+  <div class="card"><h5>② USB CDC</h5>
+    <p>S3 原生 USB，Windows 会枚举出新的 COM 口。<br>
+    不依赖 USB-UART 桥芯片，二次烧录也更稳。</p></div>
+  <div class="card"><h5>③ Wi-Fi / ESP-NOW</h5>
+    <p>连上飞控热点后可用 <code>wifi</code> 软串口下发 CLI 命令。<br>
+    适合不方便插线时看状态。</p></div>
+  <div class="card"><h5>④ ELRS</h5>
+    <p>需把 UART2（11/12）协议设为 <b>CRSF</b>。<br>
+    走 ELRS 全双工，还有双向遥测链路。</p></div>
+</div>
+
+<h2 id="s9">九、安全机制</h2>
+
+<p>ESP-FC 的安全逻辑与 Betaflight 同源，耀坤板上全部生效：</p>
+
+<table class="tight">
+<tr><th>机制</th><th>行为</th><th>本板是否生效</th></tr>
+<tr><td><b>解锁门控</b></td><td>上电默认锁定，必须显式解锁（摇杆组合或 CLI）</td><td>✅</td></tr>
+<tr><td><b>接收机失联 failsafe</b></td><td>油门置零 / 缓降（可在地面站配置）</td><td>✅ SBUS 与 CRSF 均适用</td></tr>
+<tr><td><b>IMU 失联检测</b></td><td>读数异常时停止输出并告警</td><td>✅</td></tr>
+<tr><td><b>低电压告警</b></td><td>按 <code>ESPFC_ADC_SCALE</code> 换算真实电压</td><td>✅ 系数正确才准（见 §2.2）</td></tr>
+<tr><td><b>油门限幅</b></td><td><code>desaturate()</code> 削顶后重新分配，保持姿态优先</td><td>✅ 有刷电机尤其重要</td></tr>
+<tr><td><b>校准流程</b></td><td>加速度计 1G 校准、中位校准</td><td>✅</td></tr>
+</table>
+
+<div class="note">
+<b>关于拆桨验证校准</b><br>
+ESP-FC 的加速度计校准同样需要<b>把机身摆放成六面</b>。
+如果固件是"一口气跑完 48 秒、中途不等人操作"的写法，
+人手是跟不上的 —— 六面会采到同一个姿态，<code>accScale</code> 会塌到 1e-2 量级。
+<br>
+<b>刷回本板前请确认你板子的 <code>ca</code> 命令是不是分段式（<code>ca1</code>~<code>ca6</code>）。</b>
+</div>
+
+<h2 id="s10">十、固件构建体系</h2>
+
+<h3>10.1 编译环境一览</h3>
+
+<table class="tight">
+<tr><th>env 名</th><th>平台</th><th>用途</th><th>本整理版</th></tr>
+<tr><td><code>esp32</code></td><td>ESP32</td><td>经典 ESP32（LOLIN32）</td><td>上游原样</td></tr>
+<tr><td><code>esp32s3</code></td><td>ESP32-S3</td><td>通用 S3 模板</td><td>上游原样（<b>勿烧本板</b>）</td></tr>
+<tr><td><code>esp32s2</code></td><td>ESP32-S2</td><td>SAOLA-1</td><td>上游原样</td></tr>
+<tr><td><code>esp32c3</code></td><td>ESP32-C3</td><td>C3 开发板</td><td>上游原样</td></tr>
+<tr><td><code>esp8266</code></td><td>ESP8266</td><td>D1 mini / Wemos</td><td>上游原样</td></tr>
+<tr><td><code>rp2040</code></td><td>RP2040</td><td>RP2040 / RP2350</td><td>上游原样</td></tr>
+<tr><td><b><code>esp32s3_yaokun</code></b></td><td>ESP32-S3</td><td><b>耀坤 S3 · R8N8</b></td><td><b>★ 新增</b></td></tr>
+<tr><td><b><code>esp32s3_yaokun_n4r2</code></b></td><td>ESP32-S3</td><td><b>耀坤 S3 · N4R2</b></td><td><b>★ 新增</b></td></tr>
+</table>
+
+<div class="danger">
+<b>🔴 千万别烧 <code>esp32s3</code>（上游那个）到耀坤板上</b><br>
+它会驱动 GPIO39/40/41/42 当电机 —— 其中 <b>39 是蜂鸣器</b>，
+你会听到<b>开机就一直嗡嗡响</b>，而且电机不动。这不是坏了，是烧错固件了。
+</div>
+
+<h3>10.2 耀坤 env 的关键编译宏</h3>
+
+<table class="tight">
+<tr><th>宏</th><th>作用</th><th>漏了会怎样</th></tr>
+<tr><td><code>-DESPFC_TARGET_YAOKUN</code></td><td>选耀坤引脚定义</td><td>用上游引脚 → 电机不转 + 蜂鸣器常鸣</td></tr>
+<tr><td><code>-DESPFC_DEV_PRESET_BRUSHED</code></td><td>输出协议 = PWM</td><td>发 DShot 给有刷电调 → <b>四电机全停</b></td></tr>
+<tr><td><code>-DESP32S3</code></td><td>芯片系列</td><td>找不到平台定义</td></tr>
+<tr><td><code>-DBOARD_HAS_PSRAM</code></td><td>启用 PSRAM</td><td>性能下降，黑盒子写入可能失败</td></tr>
+<tr><td><code>-DARDUINO_USB_MODE=1</code></td><td>USB 做 CDC</td><td>USB 口无串口，MSP 连不上</td></tr>
+<tr><td><code>-DARDUINO_USB_CDC_ON_BOOT=1</code></td><td>上电即枚举 CDC</td><td>同上</td></tr>
+</table>
+
+<h3>10.3 分区表与 Flash 参数</h3>
+
+<p>见 <a href="#s2">§2.1 表格</a>。要点重申：</p>
+
+<ul>
+<li><b>R8N8</b> → <code>default_8MB.csv</code> + <code>memory_type=qio_opi</code> + <code>flash_size=8MB</code></li>
+<li><b>N4R2</b> → <code>partitions_4M_nota.csv</code> + <code>memory_type=qio</code> + <code>flash_size=4MB</code></li>
+</ul>
+
+<div class="note">
+<b>烧录时不要整片擦除</b><br>
+参数持久化在 NVS 区（<code>0x9000</code>）。整片从 <code>0x0</code> 连写会把它一起清掉，
+你辛苦调好的 PID 与校准数据全丢。建议用 <b>分片烧录</b>：只写
+bootloader（<code>0x0</code>）、partition table（<code>0x8000</code>）、boot_app0（<code>0xE000</code>）、
+app（<code>0x10000</code>）。
+</div>
+
+<h2 id="s11">十一、编译与烧录</h2>
+
+<h3>11.1 命令行（推荐，可脚本化）</h3>
+
+<pre><code>cd Firmware
+
+# 编译（R8N8，★常用）
+pio run -e esp32s3_yaokun
+
+# 编译 N4R2 版本
+pio run -e esp32s3_yaokun_n4r2
+
+# 烧录 + 打开串口监视器
+pio run -e esp32s3_yaokun -t upload -t monitor
+
+# 只上传（已编译过）
+pio run -e esp32s3_yaokun -t upload --upload-port COM28
+
+# 回归验证：确认上游 env 未被污染
+pio run -e esp32s3</code></pre>
+
+<h3>11.2 VS Code（你已装的 PlatformIO）</h3>
+
+<div class="step"><div class="no">1</div><div class="tx">
+<b>打开文件夹</b><span>VS Code → 打开文件夹 → 选 <code>D:\YaoKunS\Forks\esp-fc\Firmware</code></span></div></div>
+<div class="step"><div class="no">2</div><div class="tx">
+<b>选环境</b><span>底部状态栏 → PlatformIO 图标 → 选择 <code>esp32s3_yaokun</code></span></div></div>
+<div class="step"><div class="no">3</div><div class="tx">
+<b>编译</b><span><code>Ctrl+Alt+B</code>（Build）</span></div></div>
+<div class="step"><div class="no">4</div><div class="tx">
+<b>烧录</b><span><code>Ctrl+Alt+U</code>（Upload）→ 会自动用 1200bps touch 让板子进下载模式</span></div></div>
+<div class="step"><div class="no">5</div><div class="tx">
+<b>看日志</b><span><code>Ctrl+Alt+M</code>（Monitor）→ 应看到 ESP-FC CLI 提示符</span></div></div>
+
+<h3>11.3 产物位置</h3>
+
+<pre><code>.pio/build/esp32s3_yaokun/
+├── bootloader.bin      # 0x0
+├── partitions.bin      # 0x8000
+├── boot_app0.bin       # 0xE000
+├── firmware.bin        # 0x10000   ← 主程序
+└── firmware.elf                ← 符号表，用于反查内存占用</code></pre>
+
+<h2 id="s12">十二、CLI 命令手册</h2>
+
+<p>ESP-FC 自带命令行接口，MSP 串口、USB CDC、Wi-Fi 软串口上都能敲。
+这是<b>不接地面站也能调试</b>的关键。</p>
+
+<table class="tight">
+<tr><th>命令</th><th>作用</th><th>备注</th></tr>
+<tr><td><code>status</code></td><td>打印状态摘要（飞行/解锁/传感器）</td><td>最常用</td></tr>
+<tr><td><code>dump</code></td><td>导出完整配置</td><td>备份 / 跨版本对比用</td></tr>
+<tr><td><code>get &lt;参数&gt;</code></td><td>读单个参数</td><td>如 <code>get gyro_notch_count</code></td></tr>
+<tr><td><code>set &lt;参数&gt; &lt;值&gt;</code></td><td>改单个参数</td><td>改完要 <code>save</code> 才生效</td></tr>
+<tr><td><code>save</code></td><td>写入 Flash（NVS）</td><td>⚠️ 持久化，慎用</td></tr>
+<tr><td><code>defaults</code></td><td>恢复出厂</td><td>⚠️ 会清所有调参</td></tr>
+<tr><td><code>bl</code></td><td>重启进下载模式</td><td>烧录失败时的救命命令</td></tr>
+<tr><td><code>help</code></td><td>列出全部命令</td><td></td></tr>
+</table>
+
+<div class="note">
+<code>dump</code> 出来的文本请<b>存成文件</b>再比对。两版固件的 diff 能立刻告诉你
+"是我改了参数还是环境变了"。这是排查"同一块板不同固件表现不同"的最快办法。
+</div>
+
+<h2 id="s13">十三、故障排查</h2>
+
+<table>
+<tr><th style="width:26%">现象</th><th style="width:30%">最可能根因</th><th>处理</th></tr>
+<tr><td>地面站完全搜不到板子</td><td>env 选错，Flash/PSRAM 参数不匹配</td><td>换 <code>esp32s3_yaokun</code> 或 <code>_n4r2</code> 重烧</td></tr>
+<tr><td>烧录后停在下载模式</td><td>USB CDC 没枚举出 COM</td><td>按住 BOOT 复位；或改用 UART0(43/44)</td></tr>
+<tr><td>上电无任何串口输出</td><td>Flash/PSRAM 参数错 → panic</td><td>对照 §2.1 核对</td></tr>
+<tr><td>四个电机都不转</td><td><b>漏 <code>-DESPFC_DEV_PRESET_BRUSHED</code></b></td><td>加上重新编译</td></tr>
+<tr><td>只有一个电机转</td><td>电机顺序 / 接线错</td><td>核对 §2.2，应为 6/5/15/16</td></tr>
+<tr><td>电机全转但力度极小</td><td>电压采样系数错 → 误判低压</td><td>核对 <code>ESPFC_ADC_SCALE = 2.0f/4096</code></td></tr>
+<tr><td>显示电压只有一半</td><td>同上</td><td>同上</td></tr>
+<tr><td>姿态不动 / 传感器失联</td><td>IMU 片选错（V1=17 / V2=42）</td><td>改 <code>ESPFC_SPI_CS_GYRO</code> 重编</td></tr>
+<tr><td><b>蜂鸣器常鸣</b></td><td><b>烧的是上游 esp32s3 固件</b></td><td>改烧 <code>esp32s3_yaokun</code></td></tr>
+<tr><td>SBUS 无信号</td><td>接收机没供电 / 未共地</td><td>SBUS 是<b>单线</b>：信号线到 GPIO1 + 共地</td></tr>
+<tr><td>ELRS 接收机无数据</td><td>协议没设成 CRSF</td><td>地面站把 UART2 协议改为 CRSF</td></tr>
+<tr><td>插桨后机身剧烈抖动</td><td>电机噪音进 IMU</td><td>CLI：<code>set gyro_notch_count 3</code></td></tr>
+<tr><td>校准后姿态仍飘</td><td>校准没真正采到六面</td><td>重跑校准，逐面静止 ≥2 秒</td></tr>
+</table>
+
+<h2 id="s14">十四、飞行能力边界</h2>
+
+<div class="danger">
+<b>★ 首次试飞前必读</b>
+</div>
+
+<p>ESP-FC 是<b>纯姿态自稳 + 手动油门</b>架构。</p>
+
+<table class="tight">
+<tr><th>能做</th><th>不能做 / 注意</th></tr>
+<tr><td>姿态自稳（松杆自动回平）</td><td><b>松杆不悬停</b> —— 姿态稳平但保持水平速度继续飘</td></tr>
+<tr><td>三轴手动姿态控制</td><td><b>松油门就掉高度</b></td></tr>
+<tr><td>接收机失联自动降油门</td><td>失联保护策略需在地面站确认（failsafe 模式）</td></tr>
+<tr><td>黑盒子记录与回放</td><td>无 GPS / 无地磁 / 无气压计 ⇒ <b>无定高、无定点、无航点</b></td></tr>
+</table>
+
+<div class="warn">
+<b>首次试飞建议</b>
+<ol>
+<li><b>不装桨</b>先完成所有地面验证（电机顺序、IMU 方向、failsafe）</li>
+<li>装桨后<b>先做悬空台架测试</b>：低油门、用手轻扶、检查横滚/俯仰方向是否正确</li>
+<li>首次带桨飞行：<b>空旷场地、装保护圈、留足退让空间、低空慢速</b></li>
+<li>⚠️ <b>横滚/俯仰方向写反是常见事故</b>：推杆机身应<b>向前倾</b>。
+    方向反了请交换对应电调的 <code>MOT3</code>/<code>MOT4</code> 或调整混控顺序，
+    <b>不要靠改 PID 修正</b></li>
+</ol>
+</div>
+
+<div class="note">
+<b>为什么本版不做定高？</b><br>
+耀坤 S3 板上有 <code>GPIO3 / GPIO4</code> 的 I2C1 总线，xlsx 上标注给 VL53L1X 激光测距用，
+理论上可以做激光定高。但激光在 1 米以下对黑色地面和阳光环境很不稳定，
+且本版<b>未启用</b>该总线。等飞机基本能稳飞了再考虑，顺序不能反。
+</div>
+
+<h2 id="s15">十五、与上游差异总表</h2>
+
+<table>
+<tr><th style="width:6%">编号</th><th style="width:30%">文件</th><th style="width:36%">改动</th><th>类型</th></tr>
+<tr><td><b>Y1</b></td><td><code>Firmware/lib/Espfc/src/Target/TargetESP32s3YaoKun.h</code></td>
+<td><b>新建</b>。耀坤 S3 板级引脚定义，逐条对齐 xlsx，含 8520 有刷电机适配</td><td>🔧 硬件适配（核心）</td></tr>
+<tr><td><b>Y2</b></td><td><code>Firmware/lib/Espfc/src/Target/Target.h</code></td>
+<td><b>+3 行</b>：在最前面加 <code>#if defined(ESPFC_TARGET_YAOKUN)</code> 分支</td><td>🔧 硬件适配</td></tr>
+<tr><td><b>Y3</b></td><td><code>Firmware/platformio.ini</code></td>
+<td><b>新增两个 env</b>：<code>esp32s3_yaokun</code> / <code>esp32s3_yaokun_n4r2</code>（上游 env 未动）</td><td>🔧 硬件适配</td></tr>
+<tr><td><b>Y4</b></td><td>编译宏 <code>-DESPFC_DEV_PRESET_BRUSHED</code></td>
+<td>输出协议强制 PWM（有刷电机）</td><td>🔴 电机能否转动的关键</td></tr>
+<tr><td><b>Y5</b></td><td><code>ESPFC_FEATURE_MASK</code></td>
+<td>去掉 <code>FEATURE_DYNAMIC_FILTER</code>（0.3.0 已移除该掩码，改用
+<code>gyro_notch_count</code> 配置项）</td><td>🧩 版本适配</td></tr>
+</table>
+
+<div class="ok">
+<b>总结：算法层 0 行改动</b><br>
+姿态解算（AHRS）、滤波、PID、混控、MSP 协议栈、地面站兼容性 ——
+<b>全部原样保留</b>。我们只改了"板级引脚"与"电机输出协议"这两件硬件相关的事。
+</div>
+
+<footer>
+<strong>耀坤S3 无人机 · ESP-FC 整理版　技术说明书　v1.0</strong><br>
+上游项目：<a href="https://github.com/rtlopez/esp-fc">rtlopez/esp-fc</a>（MIT，© Ramon Lopez）<br>
+整理版：<a href="https://github.com/YaoKunS/esp-fc">github.com/YaoKunS/esp-fc</a>　·
+淘宝店铺 shop35432590.taobao.com<br>
+生成日期：2026-10-18　·　本手册为新增内容，不替代上游任何版权声明
+</footer>
+
+</div>
+</body>
+</html>
