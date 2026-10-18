@@ -2,7 +2,7 @@
 
 <div align="center">
 
-# 🛩️ ESP-FC Flight Controller · YaoKun Chinese Fork
+# 🛩️ ESP-FC Flight Controller · YaoKun Chinese Edition
 
 **A mini, low-cost, high-performance ESP32 flight controller for hobbyists**
 
