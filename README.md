@@ -6,6 +6,10 @@ The mini, DIY, Low cost, ESP32 based, high performance flight controller for hob
 
 * Espressif targets (ESP32, ESP32-S3)
 * ESC protocols (PWM, Oneshot125/42, Multishot, Brushed, Dshot150/300/600 bidirectional)
+![立创开源](https://img.shields.io/badge/%E7%AB%8B%E5%88%9B%E5%BC%80%E6%BA%90-%E6%98%9F%E7%81%AB%E8%AE%A1%E5%88%922026-ff6b35)
+
+[**🛠 硬件开源工程页（PCB / BOM / 固件下载）→**](https://oshwhub.com/lindahe/project_sulkgarf)
+
 * PPM, SBUS, IBUS and CRSF Receivers
 * Builtin ESP-NOW receiver and WiFi configuration [read more...](/docs/wireless.md)
 * SPI and I2C gyro modules support (MPU6050, MPU9250, ICM20602, ICM42688, BMI160)
