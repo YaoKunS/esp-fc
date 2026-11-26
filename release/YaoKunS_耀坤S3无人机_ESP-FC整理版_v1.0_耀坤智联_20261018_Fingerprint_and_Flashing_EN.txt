@@ -80,7 +80,7 @@ certutil -hashfile "YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0_耀坤智联_
 
 sha256sum "YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0_耀坤智联_20261018_merged.bin"
 
-→ must equal 98238427d80ea13678da9757fbb48d66e725cbe39e916c053878b00222fae1fe
+→ must equal e16b46f0ccfc25f7e2cddddce158bfae7228fcafa5f2b2ce3cd351d928db4cd2
 
 ② Serial confirmation
 
@@ -100,6 +100,13 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 → the first byte must be E9 (ESP image magic).
 
 5. Artifacts and checksums (SHA-256)
+
+> v1.0.1 re-release note (2026-11-26): this release has been sanitized
+> (16 build-machine path strings "C:/Users/.../.platformio/..." replaced in-place
+> with "<esp32-core>/..."; XOR checksum byte and appended SHA-256 recomputed;
+> flashing behavior identical). SHA-256 values below differ from the original
+> v1.0 release - use this table.
+
 ------------------------------------
 
 Artifact            Flash address  SHA-256                                                             Size
@@ -107,8 +114,8 @@ Artifact            Flash address  SHA-256                                      
 bootloader.bin      0x0            1776e4dd896a69d0a5c2e79957b0e2a88aa4129b1381d6478683515a1f6af343    15,104 B (0x3B00)
 partitions.bin      0x8000         1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c    3,072 B (0xC00)
 boot_app0.bin       0xE000         f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0    8,192 B (0x2000)
-firmware.bin        0x10000        1482720c75b79337036bfdcbae9457dbfc4e2f99cb66c69fcf8677ae607f5954    995,360 B (0xF3020)
-合并单文件固件      0x0 整体刷     98238427d80ea13678da9757fbb48d66e725cbe39e916c053878b00222fae1fe    1,064,960 B (0x104000)
+firmware.bin        0x10000        ebf20c452b66a61eae7ed4ba7b15a9b332a476f8dd06235af0ff2b9db44d094b    995,360 B (0xF3020)
+合并单文件固件      0x0 整体刷     e16b46f0ccfc25f7e2cddddce158bfae7228fcafa5f2b2ce3cd351d928db4cd2    1,064,960 B (0x104000)
 
 - Merged layout: 0x0 bootloader + 0x8000 partitions + 0xE000 boot_app0 + 0x10000
   application (gaps padded with 0xFF)
