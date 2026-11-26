@@ -74,8 +74,10 @@ If you own a YaoKun board, **this section is all you need**.
 | **Y2** | `Firmware/lib/Espfc/src/Target/Target.h`                   | +3 lines: pick the YaoKun target when `-DESPFC_TARGET_YAOKUN` is set    |
 | **Y3** | `Firmware/platformio.ini`                                  | Two new build environments: `esp32s3_yaokun` / `esp32s3_yaokun_n4r2`  |
 | **Y4** | Build flag `-DESPFC_DEV_PRESET_BRUSHED`                    | Force PWM output — the 8520 coreless motors are **brushed**            |
+| **Y5** | `Device/Baro/BaroMS5611.hpp/.cpp` + detection chain (v1.0.1) | New **MS5611 barometer driver** (auto-detects MS5607/AN520 clones, new `baro_math` param) |
+| **Y6** | `TargetESP32s3YaoKun.h` + `Hardware.cpp` (v1.0.1)          | **Gyro CS default changed to 42 (PCB V2)**; IMU orientation auto-selected per bus (I2C 6050 → CW270 / SPI 6500 → CW90, calibrated against the BF Configurator 3D model) |
 
-> ✅ **Zero changes to the algorithm layer.** Attitude estimation (AHRS), filters, PID,
+> ✅ The v1.0 promise stands: attitude estimation (AHRS), filters, PID,
 > mixing, the MSP stack and ground-station compatibility are all kept from upstream.
 > Upstream's own `[env:esp32s3]` is also **untouched**, so you can always switch and compare.
 
@@ -84,7 +86,7 @@ If you own a YaoKun board, **this section is all you need**.
 Upstream `TargetESP32s3.h` targets a **generic S3 template board** (Lolin S3 Mini class) and all
 its pin numbers are placeholders. Flashing it onto a YaoKun board gives you:
 
-- ❌ **Not a single motor turns** — upstream drives GPIO 39/40/41/42, the YaoKun ESCs are on **6/5/15/16**
+- ❌ **Not a single motor turns** — upstream drives GPIO 39/40/41/42, the YaoKun ESCs are on **5/6/15/16**
 - ❌ **Buzzer runs constantly** — upstream uses GPIO39 as a motor output, but on this board **39 = buzzer**
 - ❌ **IMU undetectable** — upstream SPI chip select is 8 and clock is 12; this board is **CS=17, SCK=38**
 - ❌ **Battery voltage off by 2×** — upstream ADC is on GPIO1; this board is **GPIO2** with a 1:2 divider
@@ -95,10 +97,14 @@ its pin numbers are placeholders. Flashing it onto a YaoKun board gives you:
 
 | Channel            | GPIO      | Silkscreen | Position     |
 |--------------------|-----------|------------|--------------|
-| `ESPFC_OUTPUT_0`   | **6**     | MOT1_FR    | Front right  |
-| `ESPFC_OUTPUT_1`   | **5**     | MOT2_RR    | Rear right   |
+| `ESPFC_OUTPUT_0`   | **5**     | MOT2_RR    | Rear right   |
+| `ESPFC_OUTPUT_1`   | **6**     | MOT1_FR    | Front right  |
 | `ESPFC_OUTPUT_2`   | **15**    | MOT3_RL    | Rear left    |
 | `ESPFC_OUTPUT_3`   | **16**    | MOT4_FL    | Front left   |
+
+> ⚠️ The Betaflight QuadX mixer numbers motors 1=Rear-right, 2=Front-right,
+> 3=Rear-left, 4=Front-left — **crossed** relative to the board silkscreen
+> MOT1_FR/MOT2_RR (corrected after bench test, 2026-10-24).
 
 **IMU (gyro/accelerometer)**
 
@@ -107,9 +113,9 @@ its pin numbers are placeholders. Flashing it onto a YaoKun board gives you:
 | SPI_SCK         | **38**    |                                                                 |
 | SPI_MOSI        | **18**    |                                                                 |
 | SPI_MISO        | **21**    |                                                                 |
-| **GYRO_CS**     | **17**    | 🔴 **V1 board measured value**; V2 board uses 42                |
+| **GYRO_CS**     | **42**    | 🔴 **Default 42 since v1.0.1 (PCB V2 measured)**; V1 boards: CLI `set pin_spi_cs_0 17` |
 | I2C_SCL         | **8**     | 🔴 **SCL=8 and SDA=9 — do not swap**                             |
-| I2C_SDA         | **9**     | MPU6050 / BMP280 / magnetometer                                   |
+| I2C_SDA         | **9**     | MPU6050 / MS5611 / SPL06 / magnetometer                           |
 
 **RC and serial**
 
@@ -205,7 +211,7 @@ in the board is enough — it resets itself into download mode.
 
 **Option B — prebuilt firmware (for distributing to others)**
 
-Firmware lives in [`Firmware/release/`](Firmware/release/) together with **bilingual SHA-256
+Firmware lives in [`release/`](release/) together with **bilingual SHA-256
 fingerprint and flashing notes**. Use the
 [ESP Tool Website](https://espressif.github.io/esptool-js/):
 
@@ -247,7 +253,10 @@ otherwise hold BOOT while resetting, or switch to UART0 (GPIO43/44).
 
 - **It does not hover when you release the sticks** — attitude is held, but horizontal velocity carries on
 - **Letting go of the throttle means losing altitude**
-- No GPS / barometer / rangefinder ⇒ **no altitude hold, no position hold, no waypoints**
+- No GPS / rangefinder ⇒ **no altitude hold, no position hold, no waypoints**
+- Optional **MS5611 barometer** since v1.0.1 (`set baro_dev MS5611`) — for altitude
+  display and debugging only (Debug panel via `set debug_mode BARO`), **no altitude
+  control**
 
 > For the first flight with props: **open field, prop guards, plenty of clearance, low and slow**.
 > Pushing the stick forward should tilt the nose **down**. If the direction is reversed, fix the
@@ -261,10 +270,12 @@ otherwise hold BOOT while resetting, or switch to UART0 (GPIO43/44).
 | Stuck in download mode after flashing | USB CDC COM not enumerated | Hold BOOT and reset, or use UART0 |
 | No serial output at all on boot | Flash/PSRAM mismatch → panic | Check the environment table above |
 | **None of the four motors turn** | **Missing `-DESPFC_DEV_PRESET_BRUSHED`** | Add it and rebuild |
-| Only one motor turns | Motor order / wiring | Should be 6/5/15/16 |
+| Only one motor turns | Motor order / wiring | Should be 5/6/15/16 |
 | All motors turn but very weak | Voltage scale wrong → false low-voltage | Check `ESPFC_ADC_SCALE = 2.0f/4096` |
 | Voltage reading is half the real value | Same as above | Same as above |
-| Attitude frozen / sensor lost | IMU chip select wrong (V1=17 / V2=42) | Change `ESPFC_SPI_CS_GYRO` and rebuild |
+| Attitude frozen / sensor lost | IMU chip select wrong (default 42, V1 = 17) | CLI `set pin_spi_cs_0 17` (or change `ESPFC_SPI_CS_GYRO` and rebuild) |
+| Attitude off by 90°/180° after swapping IMU | NVS holds a stale explicit `gyro_align` | CLI `set gyro_align DEFAULT` → `save` to restore auto-detect |
+| Barometer not found | Loose wiring or SDA/SCL swapped (kills the whole I2C bus) | Check VCC/GND/SDA(9)/SCL(8) one by one; re-seat to recover |
 | **Buzzer runs constantly** | **You flashed upstream's `esp32s3` build** | Flash `esp32s3_yaokun` instead |
 | No SBUS signal | Receiver unpowered or no common ground | SBUS is single wire: signal to GPIO1 **plus** GND |
 | ELRS receiver gives no data | Protocol not set to CRSF | Set the UART2 protocol to CRSF in the configurator |

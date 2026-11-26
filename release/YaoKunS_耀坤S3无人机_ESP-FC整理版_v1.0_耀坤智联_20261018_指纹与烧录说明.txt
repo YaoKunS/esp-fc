@@ -144,3 +144,9 @@ ELRS 接收机无数据      协议没设成 CRSF                  地面站改 
 
 本说明由 Firmware/tools/pack_release.py 自动生成；哈希、分段布局、镜像头与编译时间均现场
 从固件镜像提取，与 bin 严格一致。发布物中不含任何本机路径。
+
+【⚠️ 2026-10-24 修正】本包固件的电机通道映射有误：
+  包内固件 OUTPUT_0=GPIO6(右前)/OUTPUT_1=GPIO5(右后)，
+  正确应为 OUTPUT_0=GPIO5(右后)/OUTPUT_1=GPIO6(右前)
+  （Betaflight QuadX 混控序号 1=右后 2=右前，与丝印 MOT1_FR/MOT2_RR 差一个交叉）。
+  按本包固件试转会出现横滚/俯仰反向。请以修正后重新编译的固件为准。

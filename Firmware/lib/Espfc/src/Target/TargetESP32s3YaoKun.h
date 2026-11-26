@@ -77,16 +77,22 @@
 #define ESPFC_INPUT_PIN 1 // SBUS in (EXT01, xlsx 第 19 行)
 
 /* ---------------------------------------------------------------------------
- * 电机输出（4 路，顺序严格对齐 xlsx 的 MOT1..MOT4）
- *   OUTPUT_0 → MOT1_FR (GPIO6)   右前
- *   OUTPUT_1 → MOT2_RR (GPIO5)   右后
- *   OUTPUT_2 → MOT3_RL (GPIO15)  左后
- *   OUTPUT_3 → MOT4_FL (GPIO16) 左前
- * 顺序错了会"横滚/俯仰反向"，首次上电务必拆桨验证（见适配说明 §验证）。
+ * 电机输出（4 路，顺序对齐 Betaflight QuadX 混控的电机序号）
+ *   ⚠️ 注意：ESP-FC/Betaflight 的混控电机序号 ≠ 板上丝印 MOT1..MOT4！
+ *   Betaflight QuadX 混控序号：1=右后(RR) 2=右前(FR) 3=左后(RL) 4=左前(FL)。
+ *   而板子丝印是 MOT1_FR / MOT2_RR / MOT3_RL / MOT4_FL（xlsx 网络名），
+ *   两者差一个交叉 —— 实机验证过（2026-10-24 台架实测）：
+ *     OUTPUT_0 = 混控 1 = 右后 RR = GPIO5（丝印 MOT2_RR）
+ *     OUTPUT_1 = 混控 2 = 右前 FR = GPIO6（丝印 MOT1_FR）
+ *     OUTPUT_2 = 混控 3 = 左后 RL = GPIO15（丝印 MOT3_RL）
+ *     OUTPUT_3 = 混控 4 = 左前 FL = GPIO16（丝印 MOT4_FL）
+ *   🔴 踩坑记录：最初照丝印把 OUTPUT_0 配成 GPIO6（FR），实机横滚/俯仰反向；
+ *      用 CLI `set pin_output_0 5` + `set pin_output_1 6` 实测修正后才正确。
+ *      首次上电仍务必拆桨验证（见适配说明 §验证）。
  * ------------------------------------------------------------------------ */
 #define ESPFC_OUTPUT_COUNT 4
-#define ESPFC_OUTPUT_0 6
-#define ESPFC_OUTPUT_1 5
+#define ESPFC_OUTPUT_0 5
+#define ESPFC_OUTPUT_1 6
 #define ESPFC_OUTPUT_2 15
 #define ESPFC_OUTPUT_3 16
 
@@ -176,11 +182,13 @@
  * 陀螺仪片选 —— 🔴 必须与实际板子版本一致，否则 IMU 完全读不到
  *   V1 板（2026-10 台架实测确认）：CS = GPIO17
  *   V2 板（按 xlsx 标注）      ：CS = GPIO42
- *   本版默认 V1 = 17。
+ *   本版默认 V2 = 42（2026-11-26 用户确认当前产线为 PCB V2）。
  *   ⚠️ 只改这一行就能切版本，不要去动 SCK/MOSI/MISO（两版一致）。
  *   ⚠️ GPIO42 同时也是 V2 的 CS，V1 板上它空闲；改之前请确认板型。
+ *   ⚠️ NVS 里已存过 pin_spi_cs_0 的板子不受此默认值影响——改默认值后
+ *      还需 CLI `set pin_spi_cs_0 42` + `save` 才能让老板生效。
  * ------------------------------------------------------------------------ */
-#define ESPFC_SPI_CS_GYRO 17
+#define ESPFC_SPI_CS_GYRO 42
 #define ESPFC_SPI_CS_BARO -1 // 本板未接气压计（无 BMP280）
 
 /* ---------------------------------------------------------------------------

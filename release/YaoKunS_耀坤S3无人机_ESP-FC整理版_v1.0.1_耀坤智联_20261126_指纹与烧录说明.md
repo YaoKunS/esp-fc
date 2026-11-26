@@ -9,12 +9,18 @@
 - **整理版仓库**：<https://github.com/YaoKunS/esp-fc>（分支 `yaokun-organized`）
 - **硬件对应**：耀坤 S3 无人机（ESP32-S3，8MB Flash + 8MB OPI 八线 PSRAM）
 - **电机**：4 × **8520 空心杯有刷电机**，GPIO **6 / 5 / 15 / 16**（FR / RR / RL / FL），**PWM 输出**
-- **传感器**：MPU6500（SPI，CS=GPIO17）或 MPU6050（I2C，SDA=9 / SCL=8）
+- **传感器**：MPU6500（SPI，**CS=GPIO42**，v1.0.1 起默认；V1 老板=17，CLI
+  `set pin_spi_cs_0 17` 可改）或 MPU6050（I2C，SDA=9 / SCL=8）
+- **气压计**：v1.0.1 起内置 **MS5611 驱动**（I2C 0x76/0x77，兼容 MS5607/AN520 系
+  兼容芯片自动判别；CLI `set baro_dev MS5611` 启用，`baro_math -1` 自动选补偿公式）
+- **IMU 朝向**：v1.0.1 起按总线自动分档（BF 配置器实测标定）：
+  I2C 6050 → CW270，SPI 6500 → CW90；`gyro_align` 显式设置优先
 - **遥控**：SBUS（GPIO1）；ELRS 预留 UART2（GPIO11/12，协议需设为 CRSF）
 - **地面站**：Betaflight / Cleanflight Configurator（MSP 协议 v2）
 - **其它**：蜂鸣器 GPIO39、电池电压采样 GPIO2（1:2 分压）
 
-> ★ 本固件是**纯姿态自稳 + 手动油门**：没有 GPS、气压计、测距等位置传感器。
+> ★ 本固件是**纯姿态自稳 + 手动油门**：没有 GPS、测距等位置传感器（v1.0.1 起
+> 可选配 MS5611 气压计，仅作高度显示与调试，**不做定高控制**）。
 >
 > - **松杆不会悬停** —— 姿态会稳平，但保持水平速度继续飘
 > - **松油门就掉高度**
@@ -24,13 +30,13 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 固件版本 | **v1.0**（耀坤整理版） |
+| 固件版本 | **v1.0.1**（耀坤整理版） |
 | 品牌 | 耀坤智联 / YaoKunS / YaoKunSmart |
 | 编译环境 | `pio run -e esp32s3_yaokun` |
-| 编译时间 | 2026-10-18 18:40:31 |
+| 编译时间 | 2026-11-26 17:49:32 |
 | 工具链 | PlatformIO Core（espressif32 + arduino） |
 | 关键编译宏 | `-DESPFC_TARGET_YAOKUN` `-DESPFC_DEV_PRESET_BRUSHED` |
-| 应用程序大小 | 995,360 B (0xF3020) |
+| 应用程序大小 | 997,632 B (0xF3900) |
 
 > 🔴 **两个宏都不能删**：
 > `-DESPFC_TARGET_YAOKUN` 决定用耀坤引脚（否则用上游 39/40/41/42，电机不转、蜂鸣器常鸣）；
@@ -42,11 +48,11 @@
 ### 方式 A：单文件（最简单）
 
 ```bash
-esptool --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 "YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0_耀坤智联_20261018_merged.bin"
+esptool --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 "YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0.1_耀坤智联_20261126_merged.bin"
 ```
 
 图形界面用 [ESP Tool Website](https://espressif.github.io/esptool-js/)：
-连上设备 → 添加 `YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0_耀坤智联_20261018_merged.bin` → Flash Address 填 `0x0` → Program。
+连上设备 → 添加 `YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0.1_耀坤智联_20261126_merged.bin` → Flash Address 填 `0x0` → Program。
 
 ⚠️ 若勾选了 **DoNotChgBin**：镜像头里的 SPI 模式/频率/容量已写好，改写会破坏校验。
 
@@ -69,14 +75,14 @@ esptool --chip esp32s3 --port COMx --baud 921600 write_flash \\
 **① 比文件哈希**（最可靠，不用上电）：
 
 ```cmd
-certutil -hashfile "YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0_耀坤智联_20261018_merged.bin" SHA256
+certutil -hashfile "YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0.1_耀坤智联_20261126_merged.bin" SHA256
 ```
 
 ```bash
-sha256sum "YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0_耀坤智联_20261018_merged.bin"
+sha256sum "YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0.1_耀坤智联_20261126_merged.bin"
 ```
 
-→ 应为 **98238427d80ea13678da9757fbb48d66e725cbe39e916c053878b00222fae1fe**
+→ 应为 **03897c1947c3a4e410f2d6a523601620f85f1499fc2f8eec77686089bf5e14f4**
 
 **② 串口确认**
 
@@ -105,8 +111,8 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 | `bootloader.bin` | `0x0` | `1776e4dd896a69d0a5c2e79957b0e2a88aa4129b1381d6478683515a1f6af343` | 15,104 B (0x3B00) |
 | `partitions.bin` | `0x8000` | `1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c` | 3,072 B (0xC00) |
 | `boot_app0.bin` | `0xE000` | `f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0` | 8,192 B (0x2000) |
-| `firmware.bin` | `0x10000` | `1482720c75b79337036bfdcbae9457dbfc4e2f99cb66c69fcf8677ae607f5954` | 995,360 B (0xF3020) |
-| **合并单文件固件** | `0x0` 整体刷 | `98238427d80ea13678da9757fbb48d66e725cbe39e916c053878b00222fae1fe` | 1,064,960 B (0x104000) |
+| `firmware.bin` | `0x10000` | `420c1b26834e6b15323f6d063fc5afe84568f8176b2149804c89b2bd8377b901` | 997,632 B (0xF3900) |
+| **合并单文件固件** | `0x0` 整体刷 | `03897c1947c3a4e410f2d6a523601620f85f1499fc2f8eec77686089bf5e14f4` | 1,064,960 B (0x104000) |
 
 - 合并布局：`0x0` bootloader `+ 0x8000` 分区表 `+ 0xE000` boot_app0 `+ 0x10000` 应用程序（段间填 0xFF）
 - Flash 容量：**8MB**（如需二次确认：`esptool image-info <bin>`）
@@ -130,10 +136,24 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 | **四个电机都不转** | 漏 `-DESPFC_DEV_PRESET_BRUSHED` | 加上重新编译 |
 | **蜂鸣器常鸣** | 烧的是上游 `esp32s3` 固件 | 改烧 `esp32s3_yaokun` |
 | 显示电压只有一半 | `ESPFC_ADC_SCALE` 填错 | 改为 `2.0f/4096` |
-| 姿态不动 / 传感器失联 | IMU 片选错（V1=17 / V2=42） | 改 `ESPFC_SPI_CS_GYRO` 重编 |
+| 姿态不动 / 传感器失联 | IMU 片选错（默认 42，V1 板=17） | CLI `set pin_spi_cs_0 17`（或改 `ESPFC_SPI_CS_GYRO` 重编） |
+| 换 IMU 后姿态错 90°/180° | NVS 固化了旧 `gyro_align` 值 | CLI `set gyro_align DEFAULT` → `save` 恢复自动分档 |
+| 气压计读不到 | 模块接线松/SDA-SCL 对调拉死总线 | 逐根检查 VCC/GND/SDA(9)/SCL(8)，重插即恢复 |
+| **蜂鸣器常鸣** | 烧的是上游 `esp32s3` 固件 | 改烧 `esp32s3_yaokun` |
 | ELRS 接收机无数据 | 协议没设成 CRSF | 地面站改 UART2 协议 |
 
-## 八、找到我们
+## 八、v1.0.1 主要改动
+
+- **MS5611 气压计驱动**：CLI `set baro_dev MS5611` 启用；`baro_math -1`（默认）
+  按 CRC 自动判别 MS5611 / MS5607(AN520) 系兼容芯片的补偿公式。
+- **陀螺仪 CS 默认 42（PCB V2）**：V1 老板 CLI `set pin_spi_cs_0 17` 切回。
+- **IMU 朝向自动分档**：`gyro_align=DEFAULT` 时按总线自动选
+  CW270（I2C 6050）/ CW90（SPI 6500），BF 配置器 3D 模型实测标定
+  （实物抬头 3D 抬头、实物右倾 3D 右倾）；显式设置过的值优先，
+  换 IMU 类型后用 `set gyro_align DEFAULT` 恢复自动。
+- **发布件脱敏**：编译机路径/账号名已从固件镜像清除（app 校验已重算）。
+
+## 九、找到我们
 
 - B 站（哔哩哔哩）：[耀坤智联](https://space.bilibili.com/3707011699050767)
 - GitHub：<https://github.com/YaoKunS>

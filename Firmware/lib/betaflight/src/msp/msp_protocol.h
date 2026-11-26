@@ -59,7 +59,13 @@
 #define MSP_PROTOCOL_VERSION                0
 
 #define API_VERSION_MAJOR                   1
-#define API_VERSION_MINOR                   48
+// 【2026-11-26 耀坤适配】上报 API 从 48 降到 46：
+// Betaflight Configurator 10.10.0 的 API_VERSION_MAX_SUPPORTED = 1.46（其源码
+// data_storage.js 实锤），固件上报 1.48 时配置器弹窗
+// "The Configurator version used 10.10.0 does not support firmware 1.48.0" 拒连。
+// ESP-FC 对未实现的新 MSP 命令本来就会返回 result=0，降版本只影响配置器不再
+// 发送 1.47/1.48 才有的命令，不影响现有功能。固件真实实现的命令集不变。
+#define API_VERSION_MINOR                   46
 #define API_VERSION_LENGTH                  2
 
 #define MULTIWII_IDENTIFIER "MWII";

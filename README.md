@@ -20,10 +20,6 @@
 
 </div>
 
-![立创开源](https://img.shields.io/badge/%E7%AB%8B%E5%88%9B%E5%BC%80%E6%BA%90-%E6%98%9F%E7%81%AB%E8%AE%A1%E5%88%922026-ff6b35)
-
-[**🛠 硬件开源工程页（PCB / BOM / 固件下载）→**](https://oshwhub.com/lindahe/project_sulkgarf)
-
 ---
 
 > 📌 **本仓库是 [rtlopez/esp-fc](https://github.com/rtlopez/esp-fc) 的中文整理版 + 耀坤 S3 硬件适配版。**  
@@ -74,16 +70,35 @@ ESP-FC 是一款运行在 **ESP32** 上的开源飞控固件，定位是**迷你
 | **Y2** | `Firmware/lib/Espfc/src/Target/Target.h`                  | +3 行：`-DESPFC_TARGET_YAOKUN` 时选耀坤定义                |
 | **Y3** | `Firmware/platformio.ini`                                 | 新增 `esp32s3_yaokun` / `esp32s3_yaokun_n4r2` 两个编译环境 |
 | **Y4** | 编译宏 `-DESPFC_DEV_PRESET_BRUSHED`                          | 输出协议强制 PWM —— 8520 空心杯是**有刷**电机                    |
+| **Y5** | `Device/Baro/BaroMS5611.hpp/.cpp` + 探测链接线（v1.0.1）         | 新增 **MS5611 气压计驱动**（含 MS5607/AN520 兼容片自动判别，新参数 `baro_math`） |
+| **Y6** | `TargetESP32s3YaoKun.h` + `Hardware.cpp`（v1.0.1）          | **陀螺仪 CS 默认改 42（PCB V2）**；IMU 安装朝向按总线自动分档（I2C 6050→CW270 / SPI 6500→CW90，BF 配置器实测标定） |
 
-> ✅ **算法层 0 行改动**。姿态解算（AHRS）、滤波、PID、混控、MSP 协议栈、地面站兼容性  
-> 全部原样保留上游实现。上游的 `[env:esp32s3]` 也**一行未改**，可随时切换对比。
+> ✅ v1.0 时算法层 0 行改动的口径不变：姿态解算（AHRS）、滤波、PID、混控、MSP 协议栈
+> 仍全部保留上游实现；v1.0.1 的 Y5/Y6 属于**设备驱动与板级默认值**，不动算法。
+> 上游的 `[env:esp32s3]` 也**一行未改**，可随时切换对比。
+
+### v1.0.1 更新记录（2026-11-26）
+
+- 🆕 **MS5611 气压计驱动**：I2C 0x76/0x77 全自动探测，OSR4096（baro rate 51Hz），
+  一阶 + 二阶温度补偿；新 CLI 参数 `baro_math`（`-1` 自动按 CRC 判别 / `0` MS5611 /
+  `1` MS5607-AN520 系）。台架实测：GY-63 兼容模块气压 101.4 kPa 稳定无漂移。
+  启用：CLI `set baro_dev MS5611` → `save`。
+- 🔧 **陀螺仪片选默认 42**：PCB V2 实测值写进板级默认；V1 老板 CLI
+  `set pin_spi_cs_0 17` 一条命令切回，不用重编固件。
+- 🧭 **IMU 安装朝向自动分档**：`gyro_align` 为出厂默认（DEFAULT）时，按探测到的
+  总线自动选 CW270（I2C 6050 系）/ CW90（SPI 6500 系）——BF 配置器 3D 模型实测
+  标定（实物抬头 3D 抬头、实物右倾 3D 右倾）。
+  ⚠️ 若曾在旧固件下 `save` 过参数（NVS 固化了旧对齐值），换 IMU 类型后需
+  `set gyro_align DEFAULT` → `save` 恢复自动分档。
+- 📦 **发布件脱敏**：打包脚本新增本机路径/账号名清扫 + app 镜像校验重算
+  （v1.0 发布件中残留的编译机路径已在新版流程中归零）。
 
 ### 为什么必须这么做
 
 上游 `TargetESP32s3.h` 是给 **Lolin S3 Mini 一类通用模板板**写的，引脚全是占位值。  
 直接烧到耀坤板上会：
 
-- ❌ **四个电机一个都不转** —— 上游驱动 39/40/41/42，耀坤板的电调接在 **6/5/15/16**
+- ❌ **四个电机一个都不转** —— 上游驱动 39/40/41/42，耀坤板的电调接在 **5/6/15/16**
 - ❌ **蜂鸣器常鸣** —— 上游把 GPIO39 当电机脚，而耀坤板上 **39 = 蜂鸣器**
 - ❌ **IMU 读不到** —— 上游 SPI 片选是 8、时钟是 12，耀坤板是 **CS=17、SCK=38**
 - ❌ **电池电压读数偏差一倍** —— 上游 ADC 接 GPIO1，耀坤板是 **GPIO2** 且分压比为 1:2
@@ -94,10 +109,13 @@ ESP-FC 是一款运行在 **ESP32** 上的开源飞控固件，定位是**迷你
 
 | 通道               | GPIO   | 丝印      | 位置    |
 | ---------------- | ------ | ------- | ----- |
-| `ESPFC_OUTPUT_0` | **6**  | MOT1_FR | 右前 FR |
-| `ESPFC_OUTPUT_1` | **5**  | MOT2_RR | 右后 RR |
+| `ESPFC_OUTPUT_0` | **5**  | MOT2_RR | 右后 RR |
+| `ESPFC_OUTPUT_1` | **6**  | MOT1_FR | 右前 FR |
 | `ESPFC_OUTPUT_2` | **15** | MOT3_RL | 左后 RL |
 | `ESPFC_OUTPUT_3` | **16** | MOT4_FL | 左前 FL |
+
+> ⚠️ 注意：Betaflight QuadX 混控的电机序号是 1=右后、2=右前、3=左后、4=左前，
+> 与板子丝印 MOT1_FR/MOT2_RR 的编号**相差一个交叉**（2026-10-24 台架实测修正）。
 
 **IMU（六轴）**
 
@@ -106,9 +124,9 @@ ESP-FC 是一款运行在 **ESP32** 上的开源飞控固件，定位是**迷你
 | SPI_SCK     | **38** |                         |
 | SPI_MOSI    | **18** |                         |
 | SPI_MISO    | **21** |                         |
-| **GYRO_CS** | **17** | 🔴 **V1 板实测值**；V2 板为 42 |
+| **GYRO_CS** | **42** | 🔴 **v1.0.1 起默认 42（PCB V2 实测值）**；V1 老板 CLI `set pin_spi_cs_0 17` |
 | I2C_SCL     | **8**  | 🔴 **SCL=8、SDA=9，别写反**  |
-| I2C_SDA     | **9**  | MPU6050 / BMP280 / 磁力计  |
+| I2C_SDA     | **9**  | MPU6050 / MS5611 / SPL06 / 磁力计 |
 
 **遥控与串口**
 
@@ -202,7 +220,7 @@ pio device monitor --port COM28
 
 **方式二：预编译固件（发给别人时用）**
 
-固件在 [`Firmware/release/`](Firmware/release/)，含**中英文指纹与烧录说明**。  
+固件在 [`release/`](release/)（仓库根，与 `Firmware/` 平级），含**中英文指纹与烧录说明**。  
 用 [ESP Tool Website](https://espressif.github.io/esptool-js/)：
 
 | 文件               | Flash 地址  |
@@ -242,7 +260,9 @@ pio device monitor --port COM28
 
 - **松杆不会悬停** —— 姿态会稳平，但保持水平速度继续飘
 - **松油门就掉高度**
-- 无 GPS / 气压计 / 测距 ⇒ **无定高、无定点、无航点**
+- 无 GPS / 测距 ⇒ **无定高、无定点、无航点**
+- v1.0.1 起可选配 **MS5611 气压计**（`set baro_dev MS5611`）——仅用于高度显示
+  与调试（CLI `set debug_mode BARO` 后看 Debug 面板），**不做定高控制**
 
 > 首次带桨请：**空旷场地、装保护圈、留足退让空间、低空慢速**。  
 > 推杆机身应**向前倾**；方向反了要改混控顺序，**不要靠改 PID 修正**。
@@ -255,10 +275,13 @@ pio device monitor --port COM28
 | 烧录后停在下载模式    | USB CDC 没枚举 COM                    | 按住 BOOT 复位；或改用 UART0             |
 | 上电无任何串口输出    | Flash/PSRAM 参数错 → panic            | 对照上面选型表                          |
 | **四个电机都不转**  | **漏 `-DESPFC_DEV_PRESET_BRUSHED`** | 加上重新编译                           |
-| 只有一个电机转      | 电机顺序 / 接线错                         | 应为 6/5/15/16                     |
+| 只有一个电机转      | 电机顺序 / 接线错                         | 应为 5/6/15/16                     |
 | 电机全转但力度极小    | 电压采样系数错 → 误判低压                     | 核对 `ESPFC_ADC_SCALE = 2.0f/4096` |
 | 显示电压只有一半     | 同上                                 | 同上                               |
-| 姿态不动 / 传感器失联 | IMU 片选错（V1=17 / V2=42）             | 改 `ESPFC_SPI_CS_GYRO` 重编         |
+| 姿态不动 / 传感器失联 | IMU 片选错（默认 42，V1 板=17）        | CLI `set pin_spi_cs_0 17`（或改 `ESPFC_SPI_CS_GYRO` 重编） |
+| 换 IMU 后姿态错 90°/180° | NVS 固化了旧 `gyro_align` 值          | CLI `set gyro_align DEFAULT` → `save` 恢复自动分档  |
+| 3D 模型姿态不对（新板首次） | 未做过加速度计校准 / 零偏未采到 | 放平重启一次，再做六面校准                              |
+| 气压计读不到          | 模块接线松/SDA-SCL 对调拉死总线（全 I2C 设备 FF） | 逐根检查 VCC/GND/SDA(9)/SCL(8)，重插即恢复   |
 | **蜂鸣器常鸣**    | **烧的是上游 `esp32s3` 固件**             | 改烧 `esp32s3_yaokun`              |
 | SBUS 无信号     | 接收机没供电 / 未共地                       | SBUS 是单线：信号到 GPIO1 + 共地          |
 | ELRS 接收机无数据  | 协议没设成 CRSF                         | 地面站改 UART2 协议为 CRSF              |
@@ -269,7 +292,7 @@ pio device monitor --port COM28
 
 - 📘 **[技术说明书（HTML 完整版）](Docs/ESP-FC技术说明书.html)** —— 架构、控制回路、协议、构建体系全解
 - 🔧 **[耀坤 S3 适配说明](Docs/耀坤S3适配说明.md)** —— 每处改动的根因与验证方法
-- 🔧 **[固件指纹与烧录说明](Firmware/release/)** —— SHA-256 校验 + 中英文烧录指引
+- 🔧 **[固件指纹与烧录说明](release/)** —— SHA-256 校验 + 中英文烧录指引
 
 
 <div align="center">

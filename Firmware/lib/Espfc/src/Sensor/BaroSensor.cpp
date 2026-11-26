@@ -1,4 +1,5 @@
 #include "Sensor/BaroSensor.hpp"
+#include "Device/Baro/BaroMS5611.hpp" // 临时诊断：读 MS5611 原始 ADC 值（排障完撤）
 #include "Hal/Time.hpp"
 
 namespace Espfc::Sensor {
@@ -156,6 +157,17 @@ void BaroSensor::updateAltitude()
     //_model.state.debug[1] = lrintf(baro.pressureRaw - 100000.0f); // Pa - 100000
     _model.state.debug[2] = lrintf(baro.temperatureRaw * 100.f); // deg C x 100
     _model.state.debug[3] = lrintf(baro.altitudeGround * 100.f); // cm
+    // 🔴 临时诊断（排障完撤）：把 MS5611 原始 ADC / dT / PROM 校验结果
+    //    放进 debug[4..7]（空闲槽），MSP_DEBUG(254) 可远程读取。
+    //    raw 右移 12 位是为了塞进 16 位槽（raw 24 位，高 12 位足够判值域与变化趋势）。
+    if (_baro->getType() == BARO_MS5611) // 枚举在 Espfc 命名空间，Sensor 内可直接用
+    {
+      auto* ms = static_cast<Device::Baro::BaroMS5611*>(_baro);
+      _model.state.debug[4] = ms->dbgRawD1() >> 12;
+      _model.state.debug[5] = ms->dbgRawD2() >> 12;
+      _model.state.debug[6] = (int16_t)(ms->dbgDt() & 0xFFFF);
+      _model.state.debug[7] = ms->dbgPromValid() ? 1 : 0;
+    }
   }
 }
 

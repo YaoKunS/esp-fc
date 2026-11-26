@@ -801,6 +801,11 @@ struct BaroConfig
 {
   int8_t bus = Hal::BUS_AUTO;
   int8_t dev = BARO_NONE;
+  // 压力补偿模式（仅 MS5611 驱动使用）：
+  //   -1 = 自动判别（CRC 通过→MS5611 datasheet 公式；不过→AN520/MS5607 公式）
+  //    0 = 强制 MS5611 datasheet 公式；1 = 强制 AN520/MS5607 公式（系数差 2 倍）
+  // 背景：GY-63 模块常贴 MS5607 冒充 MS5611，气压会差一半，详见 BaroMS5611.cpp
+  int8_t math = -1;
   FilterConfig filter{FILTER_BIQUAD, 3};
 };
 

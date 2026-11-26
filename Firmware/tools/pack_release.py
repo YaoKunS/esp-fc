@@ -48,7 +48,9 @@ TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 FIRMWARE_DIR = os.path.dirname(TOOLS_DIR)          # Firmware/
 REPO_DIR = os.path.dirname(FIRMWARE_DIR)           # 仓库根
 BUILD_DIR = os.path.join(FIRMWARE_DIR, ".pio", "build")
-RELEASE_DIR = os.path.join(FIRMWARE_DIR, "release")
+# 🔴 v1.0.1 起 release 目录移到仓库根（与 Firmware 平级，2026-11-26 用户约定）：
+#    Firmware/ 只留源码与构建产物，发布件统一放 <仓库根>/release/
+RELEASE_DIR = os.path.join(REPO_DIR, "release")
 
 # boot_app0.bin 不在 build 目录里，它由 esp32 core 提供，按需自动定位
 BOOT_APP0_HINTS = [
@@ -67,6 +69,12 @@ SEGMENTS = [
 # 合并后单文件末尾追加（ESP32 标准做法）
 FLASH_SECTOR_SIZE = 0x1000
 ENCRYPT_KEY = b"\xff" * 16
+
+# 🔴 发布脱敏：Arduino ESP32 core 的日志/断言宏会把 __FILE__ 编译进固件，
+#    形如 C:/Users/<账号>/.platformio/packages/framework-arduinoespressif32/.../xxx.cpp
+#    （本机路径 + 本机账号名，严禁出现在发布物里，2026-11-26 实扫 16 处）。
+#    字符串是 NUL 结尾的，整串匹配到 NUL 为止后做等长占位替换。
+LOCAL_PATH_RE = re.compile(rb'C:/Users/[^/\x00]+/\.platformio/[^\x00]+')
 
 
 def log(msg):
@@ -158,6 +166,72 @@ def merge_bin(parts, out_path):
     return len(buf)
 
 
+def fix_app_image_trailer(data):
+    """重算 ESP app 镜像尾部的 XOR 校验字节与 appended SHA-256（移植自 flix 打包脚本）。
+
+    【为什么需要】bootloader 启动 app 前做两道校验：
+      ① XOR 校验字节：各段段数据逐字节异或（初始 0xEF），写在最后一段之后、
+         对齐到「≡15 (mod 16)」偏移处，SHA 前 1 字节；
+      ② appended SHA-256：末 32 字节，覆盖镜像从 0 到校验字节（含）的全部内容。
+    改了段内容（哪怕 1 字节）后两处都必须重算，否则 bootloader 报
+    "Checksum failed" / 哈希不匹配而拒绝启动（flix 工程实机踩坑实证）。
+
+    参数 data: bytes —— app 镜像原始内容（0xE9 头）
+    返回 (修复后的 bytes, 是否为 app 镜像 bool)
+    """
+    if len(data) < 64 or data[0] != 0xE9:
+        return data, False
+    nseg = data[1]                       # ESP 镜像头第 2 字节 = 段数
+    pos = 8 + 16                         # 8B 公共头 + 16B 扩展头（esp32 app 自 IDF v4 起都有）
+    total = 0xEF                         # ESP_CHECKSUM_MAGIC
+    for _ in range(nseg):
+        _load, ln = struct.unpack_from("<II", data, pos)
+        for b in data[pos + 8:pos + 8 + ln]:
+            total ^= b
+        pos += 8 + ln
+    # 校验字节对齐到「下一个 ≡15 (mod 16)」的偏移（与 esptool align_file_position 一致）
+    cs_off = pos + ((15 - pos % 16) % 16)
+    out = bytearray(data)
+    out[cs_off] = total                  # ① 重算 XOR 校验字节
+    # ② 重算 appended SHA-256（覆盖 0 ~ 校验字节含），SHA 后补零保持 16 对齐
+    fixed = bytes(out[:cs_off + 1]) + hashlib.sha256(bytes(out[:cs_off + 1])).digest()
+    pad = (-(cs_off + 33)) % 16
+    fixed += b"\x00" * pad
+    return fixed, True
+
+
+def sanitize_segment(path, tag):
+    """读取段文件 → 替换本机路径 → 重算镜像尾部（若是 app 镜像）→ 写回原路径。
+
+    只有真正的 ESP app 镜像（0xE9 头，即 firmware.bin）才有 appended 校验结构
+    需要重算；partitions.bin / boot_app0.bin / bootloader.bin 即使被替换也无需重算
+    （bootloader 镜像自带逐段校验和字段但不含路径串，实扫为 0 处）。
+    返回替换处数（供日志汇报）。
+    """
+    with open(path, "rb") as f:
+        data = f.read()
+    out = bytearray(data)
+    changed = 0
+    for m in LOCAL_PATH_RE.finditer(data):
+        full = m.group(0)
+        fname = full.rsplit(b"/", 1)[-1]           # 取路径最后一段文件名
+        new = b"<esp32-core>/" + fname
+        if len(new) > len(full):
+            new = new[:len(full)]                  # 兜底：占位串不应比原路径长
+        out[m.start():m.start() + len(new)] = new
+        out[m.start() + len(new):m.start() + len(full)] = b"\x00" * (len(full) - len(new))
+        changed += 1
+    if changed:
+        data = bytes(out)
+        # 改了段数据 ⇒ XOR 校验字节与 appended SHA-256 都必须重算（缺一即拒启）
+        data, is_app = fix_app_image_trailer(data)
+        with open(path, "wb") as f:
+            f.write(data)
+        log(f"  [脱敏] {tag:<12} 替换 {changed} 处本机路径"
+            f"{'（已重算校验字节+SHA）' if is_app else ''}")
+    return changed
+
+
 def build_context(env, version):
     """
     收集打包需要的全部信息：产物路径、大小、哈希、镜像头、编译时间。
@@ -221,12 +295,18 @@ CN_TMPL = """# 耀坤S3无人机 / ESP-FC 整理版 —— 固件指纹与烧录
 - **整理版仓库**：<https://github.com/YaoKunS/esp-fc>（分支 `yaokun-organized`）
 - **硬件对应**：耀坤 S3 无人机（ESP32-S3，{flash}MB Flash + {psram}）
 - **电机**：4 × **8520 空心杯有刷电机**，GPIO **6 / 5 / 15 / 16**（FR / RR / RL / FL），**PWM 输出**
-- **传感器**：MPU6500（SPI，CS=GPIO17）或 MPU6050（I2C，SDA=9 / SCL=8）
+- **传感器**：MPU6500（SPI，**CS=GPIO42**，v1.0.1 起默认；V1 老板=17，CLI
+  `set pin_spi_cs_0 17` 可改）或 MPU6050（I2C，SDA=9 / SCL=8）
+- **气压计**：v1.0.1 起内置 **MS5611 驱动**（I2C 0x76/0x77，兼容 MS5607/AN520 系
+  兼容芯片自动判别；CLI `set baro_dev MS5611` 启用，`baro_math -1` 自动选补偿公式）
+- **IMU 朝向**：v1.0.1 起按总线自动分档（BF 配置器实测标定）：
+  I2C 6050 → CW270，SPI 6500 → CW90；`gyro_align` 显式设置优先
 - **遥控**：SBUS（GPIO1）；ELRS 预留 UART2（GPIO11/12，协议需设为 CRSF）
 - **地面站**：Betaflight / Cleanflight Configurator（MSP 协议 v2）
 - **其它**：蜂鸣器 GPIO39、电池电压采样 GPIO2（1:2 分压）
 
-> ★ 本固件是**纯姿态自稳 + 手动油门**：没有 GPS、气压计、测距等位置传感器。
+> ★ 本固件是**纯姿态自稳 + 手动油门**：没有 GPS、测距等位置传感器（v1.0.1 起
+> 可选配 MS5611 气压计，仅作高度显示与调试，**不做定高控制**）。
 >
 > - **松杆不会悬停** —— 姿态会稳平，但保持水平速度继续飘
 > - **松油门就掉高度**
@@ -337,10 +417,24 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 | **四个电机都不转** | 漏 `-DESPFC_DEV_PRESET_BRUSHED` | 加上重新编译 |
 | **蜂鸣器常鸣** | 烧的是上游 `esp32s3` 固件 | 改烧 `esp32s3_yaokun` |
 | 显示电压只有一半 | `ESPFC_ADC_SCALE` 填错 | 改为 `2.0f/4096` |
-| 姿态不动 / 传感器失联 | IMU 片选错（V1=17 / V2=42） | 改 `ESPFC_SPI_CS_GYRO` 重编 |
+| 姿态不动 / 传感器失联 | IMU 片选错（默认 42，V1 板=17） | CLI `set pin_spi_cs_0 17`（或改 `ESPFC_SPI_CS_GYRO` 重编） |
+| 换 IMU 后姿态错 90°/180° | NVS 固化了旧 `gyro_align` 值 | CLI `set gyro_align DEFAULT` → `save` 恢复自动分档 |
+| 气压计读不到 | 模块接线松/SDA-SCL 对调拉死总线 | 逐根检查 VCC/GND/SDA(9)/SCL(8)，重插即恢复 |
+| **蜂鸣器常鸣** | 烧的是上游 `esp32s3` 固件 | 改烧 `esp32s3_yaokun` |
 | ELRS 接收机无数据 | 协议没设成 CRSF | 地面站改 UART2 协议 |
 
-## 八、找到我们
+## 八、v1.0.1 主要改动
+
+- **MS5611 气压计驱动**：CLI `set baro_dev MS5611` 启用；`baro_math -1`（默认）
+  按 CRC 自动判别 MS5611 / MS5607(AN520) 系兼容芯片的补偿公式。
+- **陀螺仪 CS 默认 42（PCB V2）**：V1 老板 CLI `set pin_spi_cs_0 17` 切回。
+- **IMU 朝向自动分档**：`gyro_align=DEFAULT` 时按总线自动选
+  CW270（I2C 6050）/ CW90（SPI 6500），BF 配置器 3D 模型实测标定
+  （实物抬头 3D 抬头、实物右倾 3D 右倾）；显式设置过的值优先，
+  换 IMU 类型后用 `set gyro_align DEFAULT` 恢复自动。
+- **发布件脱敏**：编译机路径/账号名已从固件镜像清除（app 校验已重算）。
+
+## 九、找到我们
 
 - B 站（哔哩哔哩）：[耀坤智联](https://space.bilibili.com/3707011699050767)
 - GitHub：<https://github.com/YaoKunS>
@@ -364,13 +458,21 @@ adaptation for the YaoKun S3 hardware.
 - **This fork**: <https://github.com/YaoKunS/esp-fc> (branch `yaokun-organized`)
 - **Hardware**: YaoKun S3 drone (ESP32-S3, {flash} MB Flash + {psram})
 - **Motors**: 4 × **8520 coreless brushed motors**, GPIO **6 / 5 / 15 / 16** (FR / RR / RL / FL), **PWM output**
-- **Sensors**: MPU6500 (SPI, CS=GPIO17) or MPU6050 (I2C, SDA=9 / SCL=8)
+- **Sensors**: MPU6500 (SPI, **CS=GPIO42** default since v1.0.1; V1 boards use 17 —
+  change with CLI `set pin_spi_cs_0 17`) or MPU6050 (I2C, SDA=9 / SCL=8)
+- **Barometer**: MS5611 driver added in v1.0.1 (I2C 0x76/0x77, auto-detects MS5607/AN520
+  clone parts; enable with CLI `set baro_dev MS5611`, `baro_math -1` picks the compensation
+  formula automatically)
+- **IMU orientation**: auto-selected per bus since v1.0.1 (calibrated against the
+  Betaflight Configurator 3D model): I2C 6050 → CW270, SPI 6500 → CW90; an explicit
+  `gyro_align` always wins
 - **RC**: SBUS (GPIO1); ELRS reserved on UART2 (GPIO11/12, protocol must be set to CRSF)
 - **Ground station**: Betaflight / Cleanflight Configurator (MSP v2)
 - **Misc**: buzzer GPIO39, battery sense GPIO2 (1:2 divider)
 
-> ★ This firmware is **attitude-stabilised + manual throttle only**: no GPS, barometer or
-> rangefinder.
+> ★ This firmware is **attitude-stabilised + manual throttle only**: no GPS or rangefinder.
+> An optional MS5611 barometer (v1.0.1+) is for altitude display / debugging only —
+> **no altitude control**.
 >
 > - **It does not hover when you release the sticks** — attitude is held but horizontal
 >   velocity carries on
@@ -488,10 +590,26 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 | **None of the four motors turn** | Missing `-DESPFC_DEV_PRESET_BRUSHED` | Add it and rebuild |
 | **Buzzer runs constantly** | You flashed upstream's `esp32s3` build | Flash `esp32s3_yaokun` instead |
 | Voltage reading is half the real value | Wrong `ESPFC_ADC_SCALE` | Change it to `2.0f/4096` |
-| Attitude frozen / sensor lost | Wrong IMU chip select (V1=17 / V2=42) | Change `ESPFC_SPI_CS_GYRO` and rebuild |
+| Attitude frozen / sensor lost | Wrong IMU chip select (default 42, V1 boards = 17) | CLI `set pin_spi_cs_0 17` (or change `ESPFC_SPI_CS_GYRO` and rebuild) |
+| Attitude off by 90°/180° after swapping IMU | NVS has a stale explicit `gyro_align` value | CLI `set gyro_align DEFAULT` → `save` to restore auto-detect |
+| Barometer not found | Loose wiring or SDA/SCL swapped (pulls the whole I2C bus down) | Check VCC/GND/SDA(9)/SCL(8) one by one; re-seat to recover |
 | ELRS receiver gives no data | Protocol not set to CRSF | Set the UART2 protocol in the configurator |
 
-## 8. Find us
+## 8. What's new in v1.0.1
+
+- **MS5611 barometer driver**: enable with CLI `set baro_dev MS5611`; `baro_math -1`
+  (default) auto-detects the MS5611 vs MS5607(AN520) clone compensation formula via CRC.
+- **Gyro CS default changed to 42 (PCB V2)**: V1 boards switch back with
+  CLI `set pin_spi_cs_0 17`.
+- **Automatic IMU orientation**: while `gyro_align` is DEFAULT, the alignment is
+  auto-selected per bus — CW270 (I2C 6050) / CW90 (SPI 6500) — calibrated against
+  the Betaflight Configurator 3D model (nose up renders nose up, right roll renders
+  right roll); explicit settings always win, restore auto mode with
+  `set gyro_align DEFAULT`.
+- **Release sanitisation**: build-machine paths / account names removed from the
+  firmware image (app checksum recomputed).
+
+## 9. Find us
 
 - Bilibili: [YaoKunSmart](https://space.bilibili.com/3707011699050767)
 - GitHub: <https://github.com/YaoKunS>
@@ -690,6 +808,23 @@ def main():
     ctx = build_context(args.env, args.ver)
     for s in ctx["segments"]:
         log(f"  {s['name']:<12} 0x{s['addr']:06X}  {human_size(s['size'])}  {s['sha'][:16]}…")
+
+    # ── 发布脱敏（2026-11-26 新增）─────────────────────────────────────────
+    # Arduino core 的 __FILE__ 字符串会把 C:/Users/<账号>/.platformio/... 编进
+    # firmware.bin（实扫 16 处）。只处理 BUILD_DIR 下的三个段；
+    # 🔴 boot_app0.bin 位于 PlatformIO core 包目录里，绝不能写回（会污染共享安装），
+    #    它是纯 OTA 数据、不含路径串，直接跳过。
+    for s in ctx["segments"]:
+        if s["name"] == "boot_app0" or not s["path"].startswith(BUILD_DIR):
+            continue
+        n = sanitize_segment(s["path"], s["name"])
+        if n:
+            # 段内容变了：同步刷新上下文里的哈希与大小，保证说明文档与 bin 一致
+            s["sha"] = sha256(s["path"])
+            s["size"] = os.path.getsize(s["path"])
+    app = ctx["segments"][-1]
+    ctx["app_size"] = app["size"]
+    ctx["app_hdr"] = parse_image_header(app["path"])   # 镜像头信息也可能变，重取
 
     base = f"YaoKunS_耀坤S3无人机_ESP-FC整理版_{args.ver}_耀坤智联_{ctx['date_tag']}"
 

@@ -41,8 +41,16 @@
 #error "Unsupported platform"
 #endif
 
+// 固件修订号（短版本身份标识）
+// 来源：上游由 bin/pio_version.py 在编译时从 git rev-parse --short=7 HEAD 探测；
+//       耀坤整理版目录无 .git，探测必然失败 → 走这里的默认值。
+// 旧默认值 0000000 无识别度，改为耀坤板型标识，便于在 CLI `version`、黑盒日志头里认出版本。
+// ⚠️ 注意：这里必须写【不带引号的裸 token】——本宏只经 STR() 字符串化使用（platform.c:5），
+//    若写成带引号的字符串，STR 会把引号也编进去，串口输出变成 "YaoKunS..."（含引号）。
+// ⚠️ MSP_BUILD_INFO 应答只取前 7 字节（GIT_SHORT_REVISION_LENGTH，Betaflight 1.44 协议约定），
+//    所以 Betaflight Configurator 界面里只会显示前 7 位 "YaoKunS"；完整串看 CLI `version`。
 #ifndef ESPFC_REVISION
-#define ESPFC_REVISION 0000000
+#define ESPFC_REVISION YaoKunS3FC_JLCS3R8N8
 #endif
 
 #ifndef ESPFC_VERSION

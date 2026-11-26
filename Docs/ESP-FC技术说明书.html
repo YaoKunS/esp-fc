@@ -110,7 +110,7 @@
 <div class="wrap">
 
 <div class="cover">
-  <span class="badge">开源飞控 ESP-FC · 耀坤 S3 硬件适配版 v1.0</span>
+  <span class="badge">开源飞控 ESP-FC · 耀坤 S3 硬件适配版 v1.0.1（2026-11-26）</span>
   <h1>耀坤S3无人机 · ESP-FC 整理版</h1>
   <div class="sub">MSP 协议全兼容地面站　·　8520 空心杯有刷电机适配　·　Betaflight 配置器直接识别</div>
   <div class="facts">
@@ -204,8 +204,8 @@
 <h4>电机输出</h4>
 <table class="tight">
 <tr><th>通道</th><th>GPIO</th><th>PCB 丝印</th><th>位置</th><th>上游模板值</th></tr>
-<tr><td><code>ESPFC_OUTPUT_0</code></td><td><b>6</b></td><td>MOT1_FR</td><td>右前 FR</td><td>39 ❌</td></tr>
-<tr><td><code>ESPFC_OUTPUT_1</code></td><td><b>5</b></td><td>MOT2_RR</td><td>右后 RR</td><td>40 ❌</td></tr>
+<tr><td><code>ESPFC_OUTPUT_0</code></td><td><b>5</b></td><td>MOT2_RR</td><td>右后 RR</td><td>39 ❌</td></tr>
+<tr><td><code>ESPFC_OUTPUT_1</code></td><td><b>6</b></td><td>MOT1_FR</td><td>右前 FR</td><td>40 ❌</td></tr>
 <tr><td><code>ESPFC_OUTPUT_2</code></td><td><b>15</b></td><td>MOT3_RL</td><td>左后 RL</td><td>41 ❌</td></tr>
 <tr><td><code>ESPFC_OUTPUT_3</code></td><td><b>16</b></td><td>MOT4_FL</td><td>左前 FL</td><td>42 ❌</td></tr>
 </table>
@@ -224,17 +224,19 @@
 <tr><td>SPI_SCK</td><td><b>38</b></td><td>xlsx 第 6 行；也可挂光流</td></tr>
 <tr><td>SPI_MOSI</td><td><b>18</b></td><td>xlsx 第 5 行</td></tr>
 <tr><td>SPI_MISO</td><td><b>21</b></td><td>xlsx 第 4 行</td></tr>
-<tr><td><b>GYRO_CS</b></td><td><b>17</b></td><td>🔴 <b>V1 板实测值</b>；V2 板按表为 42</td></tr>
+<tr><td><b>GYRO_CS</b></td><td><b>42</b></td><td>🔴 <b>v1.0.1 默认值 = PCB V2 实测</b>；V1 板 <code>set pin_spi_cs_0 17</code> 切回</td></tr>
 <tr><td>I2C_SCL</td><td><b>8</b></td><td>🔴 <b>SCL=8、SDA=9，别写反</b></td></tr>
-<tr><td>I2C_SDA</td><td><b>9</b></td><td>MPU6050 / BMP280 / 磁力计</td></tr>
-<tr><td>BARO_CS</td><td>−1</td><td>本板未接气压计</td></tr>
+<tr><td>I2C_SDA</td><td><b>9</b></td><td>MPU6050 / MS5611 / BMP280 / 磁力计</td></tr>
+<tr><td>气压计</td><td>−1（无内置）</td><td>v1.0.1 起支持外接 <b>MS5611</b>（I2C，与 6050 共总线）</td></tr>
 <tr><td>MPU6500_INT</td><td>−1（未用）</td><td>GPIO40，本版未启用</td></tr>
 </table>
 
 <div class="note">
-<b>换 V1 / V2 板只需改一行</b><br>
-两个版本只差 <code>ESPFC_SPI_CS_GYRO</code> 这一个引脚（<code>17</code> ↔ <code>42</code>），
-SCK / MOSI / MISO 两版完全一致。不要去动其它三个。
+<b>V1 / V2 板只差这一个引脚（<code>17</code> ↔ <code>42</code>）</b><br>
+v1.0.1 起板级默认写 <b>42</b>（PCB V2，当前出货板型）。V1 老板用 CLI
+<code>set pin_spi_cs_0 17</code> 一条命令切回（NVS 持久化，无需重编固件）；
+改 <code>TargetESP32s3YaoKun.h</code> 里 <code>ESPFC_SPI_CS_GYRO</code> 的重编路径仍保留作备选。
+SCK / MOSI / MISO 两版完全一致，不要去动。
 </div>
 
 <h4>遥控与串口</h4>
@@ -312,7 +314,7 @@ VBAT 经 <b>1:2</b> 分压到 GPIO2，即 <code>Vbat = Vadc × 2</code>。
 
 <div class="danger">
 <ol>
-<li><b>四个电机一个都不转</b> —— 驱动 39/40/41/42，而电调接在 6/5/15/16</li>
+<li><b>四个电机一个都不转</b> —— 驱动 39/40/41/42，而电调接在 5/6/15/16</li>
 <li><b>蜂鸣器常鸣</b> —— GPIO39 被当成电机 PWM 输出</li>
 <li><b>IMU 读不到</b> —— SPI 片选是 8、时钟是 12，而板上是 17/38</li>
 <li><b>电池电压读数偏差一倍</b> —— ADC 接在 1 而板上是 2，且分压系数不同</li>
@@ -397,7 +399,7 @@ DShot 双向回读（<i>bidirectional DShot</i>）能让地面站显示实时转
 <div class="step"><div class="no">1</div><div class="tx">
 <b>地面站 → 电机测试</b><span>不装桨，接通电池，四个电机必须全部响</span></div></div>
 <div class="step"><div class="no">2</div><div class="tx">
-<b>只有一个响</b><span>检查 <code>ESPFC_OUTPUT_0..3</code> 顺序与电调接线（应为 6/5/15/16）</span></div></div>
+<b>只有一个响</b><span>检查 <code>ESPFC_OUTPUT_0..3</code> 顺序与电调接线（应为 5/6/15/16）</span></div></div>
 <div class="step"><div class="no">3</div><div class="tx">
 <b>全都不响</b><span>检查编译命令是否带 <code>-DESPFC_DEV_PRESET_BRUSHED</code></span></div></div>
 
@@ -478,7 +480,7 @@ DShot 双向回读（<i>bidirectional DShot</i>）能让地面站显示实时转
   <div class="farrow">↓</div>
   <div class="fnode hl"><span class="tag">⑥ 输出</span>
     <span class="ttl">PWM / DShot 帧</span>
-    <span class="desc">★ 本板走 PWM(GPIO 6/5/15/16)，异步 LEDC，3 kHz</span></div>
+    <span class="desc">★ 本板走 PWM(GPIO 5/6/15/16)，异步 LEDC，3 kHz</span></div>
 </div>
 
 <h3>6.1 与 Betaflight 参数的对应</h3>
@@ -489,7 +491,7 @@ DShot 双向回读（<i>bidirectional DShot</i>）能让地面站显示实时转
 <table class="tight">
 <tr><th>Betaflight 项</th><th>含义</th><th>本板建议初值</th></tr>
 <tr><td>PID Profile</td><td>角度环/速率环 PID</td><td>先用默认，别乱调</td></tr>
-<tr><td>Gyro LP Filter</td><td>陀螺低通截止</td><td>默认；有刷噪音大可降到 <code>60 Hz</code></tr></tr>
+<tr><td>Gyro LP Filter</td><td>陀螺低通截止</td><td>默认；有刷噪音大可降到 <code>60 Hz</code></td></tr>
 <tr><td>Dyn Notch Count</td><td>动态陷波组数</td><td><b>插桨后设 3</b></td></tr>
 <tr><td>Motor Min/Max</b></td><td>电机端点</td><td>先用默认，地面站电机测试校准</td></tr>
 <tr><td>Motor Output</td><td>输出协议</td><td>应显示 <b>PWM / Brushed</b></td></tr>
@@ -503,9 +505,9 @@ DShot 双向回读（<i>bidirectional DShot</i>）能让地面站显示实时转
 耀坤板两种都能用：</p>
 
 <table class="tight">
-<tr><th>IMU 芯片</th><th>总线</th><th>SDA/SCL 或 SCK/MOSI/MISO</th><th>片选</th><th>最高速率</th></tr>
-<tr><td>MPU6500</td><td>SPI</td><td>38 / 18 / 21</td><td><b>17</b></td><td>4000 Hz</td></tr>
-<tr><td>MPU6050</td><td>I2C</td><td>SDA <b>9</b> / SCL <b>8</b></td><td>—</td><td>2000 Hz</td></tr>
+<tr><th>IMU 芯片</th><th>总线</th><th>SDA/SCL 或 SCK/MOSI/MISO</th><th>片选</th><th>最高速率</th><th>朝向自动分档（v1.0.1）</th></tr>
+<tr><td>MPU6500</td><td>SPI</td><td>38 / 18 / 21</td><td><b>42</b></td><td>4000 Hz</td><td><b>CW90</b></td></tr>
+<tr><td>MPU6050</td><td>I2C</td><td>SDA <b>9</b> / SCL <b>8</b></td><td>—</td><td>2000 Hz</td><td><b>CW270</b></td></tr>
 </table>
 
 <div class="warn">
@@ -517,12 +519,40 @@ I2C 完全不通 —— 而且现象很迷惑：有时能"碰巧"读到，因为
 <b>同一条教训在 Flix 工程也踩过一次</b> —— 两个项目、两块板、同一个坑，值得单独记一笔。
 </div>
 
-<h3>7.2 常见故障：IMU 读不到</h3>
+<h3>7.2 IMU 安装朝向自动分档（v1.0.1 新增）</h3>
+
+<p>PCB V2 上两种 IMU 模块的插装方向都不是"零旋转"，出厂默认
+<code>gyro_align=DEFAULT</code>（不旋转）会让地面站 3D 姿态错。v1.0.1 起，
+固件在<b>每次探测陀螺仪时</b>按总线自动分档（上表"朝向自动分档"列），
+BF 配置器 3D 模型实测标定：实物抬头 → 3D 抬头、实物右倾 → 3D 右倾。</p>
+
+<div class="warn">
+<b>🔴 插装方向是姿态反相的第一嫌疑</b><br>
+排母 / SPI 座允许 <b>180° 插装</b>，模块插的方向一变，正确档位就跟着变。
+若见 pitch/roll <b>双双反相</b>（实物抬头 3D 低头、左倾 3D 右倾）
+= 传感器系绕 Z 轴恰差 180°，先检查模块有没有被反向插过，再谈参数。
+判定技巧：板子<b>水平静止</b>时加速度计 z 轴 ≈ +1g 说明芯片没装反面。
+</div>
+
+<p><b>现场试档</b>（不用重新编译）：<code>gyro_align</code> 每个采样周期实时读取，
+CLI <code>set gyro_align CW270</code> 后立即生效，BF 3D 直接可看；确认对了才
+<code>save</code>。<b>⚠️ 任何 <code>save</code> 都会把当时的值固化进 NVS</b>，
+显式值（≠DEFAULT）会永久压制自动分档——换 IMU 类型后它会拿旧值去转新模块。
+恢复自动分档：<code>set gyro_align DEFAULT</code> → <code>save</code>。</p>
+
+<p><b>气压计（v1.0.1 新增）</b>：支持外接 MS5611（I2C 0x76/0x77 自动探测，
+OSR4096，约 51 Hz），新参数 <code>baro_math</code>：<code>-1</code> 自动按 PROM CRC-4
+判别 datasheet / AN520 公式（默认）、<code>0</code> MS5611、<code>1</code> MS5607 系。
+🔴 市售 GY-63 模块多贴 <b>MS5607/AN520 系</b>芯片，公式用错时
+<b>气压读数恰为真实值的一半</b>（约 50 kPa）——用 <code>-1</code> 自动判别即可。
+⚠️ 模块接线不良会拉死整条 I2C 总线（连 MPU6050 都读不到），I2C 全灭先拔外接模块。</p>
+
+<h3>7.3 常见故障：IMU 读不到</h3>
 
 <p>按这个顺序排查，90% 的问题在前两步：</p>
 
 <div class="step"><div class="no">1</div><div class="tx">
-<b>确认板型版本</b><span>V1 板 CS=<code>17</code>；V2 板 CS=<code>42</code>。改错必然读不到</span></div></div>
+<b>确认板型版本</b><span>v1.0.1 默认 CS=<code>42</code>（PCB V2）；V1 板 <code>set pin_spi_cs_0 17</code>。改错必然读不到</span></div></div>
 <div class="step"><div class="no">2</div><div class="tx">
 <b>确认总线</b><span>6500 走 SPI、6050 走 I2C。插错总线 = 完全没数据</span></div></div>
 <div class="step"><div class="no">3</div><div class="tx">
@@ -709,10 +739,14 @@ pio run -e esp32s3</code></pre>
 <tr><td>烧录后停在下载模式</td><td>USB CDC 没枚举出 COM</td><td>按住 BOOT 复位；或改用 UART0(43/44)</td></tr>
 <tr><td>上电无任何串口输出</td><td>Flash/PSRAM 参数错 → panic</td><td>对照 §2.1 核对</td></tr>
 <tr><td>四个电机都不转</td><td><b>漏 <code>-DESPFC_DEV_PRESET_BRUSHED</code></b></td><td>加上重新编译</td></tr>
-<tr><td>只有一个电机转</td><td>电机顺序 / 接线错</td><td>核对 §2.2，应为 6/5/15/16</td></tr>
+<tr><td>只有一个电机转</td><td>电机顺序 / 接线错</td><td>核对 §2.2，应为 5/6/15/16</td></tr>
 <tr><td>电机全转但力度极小</td><td>电压采样系数错 → 误判低压</td><td>核对 <code>ESPFC_ADC_SCALE = 2.0f/4096</code></td></tr>
 <tr><td>显示电压只有一半</td><td>同上</td><td>同上</td></tr>
-<tr><td>姿态不动 / 传感器失联</td><td>IMU 片选错（V1=17 / V2=42）</td><td>改 <code>ESPFC_SPI_CS_GYRO</code> 重编</td></tr>
+<tr><td>姿态不动 / 传感器失联</td><td>IMU 片选错</td><td>v1.0.1 默认 CS=42；V1 板 <code>set pin_spi_cs_0 17</code> → <code>save</code></td></tr>
+<tr><td>pitch/roll 双反相（抬头→低头、左倾→右倾）</td><td>模块 180° 反插 / gyro_align 显式值残留</td><td>固定插装方向；<code>set gyro_align DEFAULT</code> → <code>save</code> 恢复自动分档（§7.2）</td></tr>
+<tr><td>换 IMU 模块后姿态错 90°/180°</td><td>NVS 固化了旧 <code>gyro_align</code> 显式值</td><td><code>set gyro_align DEFAULT</code> → <code>save</code></td></tr>
+<tr><td>气压读数恰为一半（约 50 kPa）</td><td>GY-63 实贴 MS5607/AN520 系，公式用错</td><td><code>set baro_math -1</code>（CRC 自动判别）或 <code>1</code></td></tr>
+<tr><td>I2C 全灭（陀螺/气压全 FF）</td><td>外接模块接线不良拉死总线</td><td>拔掉外接模块逐个排除；I2C 已降速 800</td></tr>
 <tr><td><b>蜂鸣器常鸣</b></td><td><b>烧的是上游 esp32s3 固件</b></td><td>改烧 <code>esp32s3_yaokun</code></td></tr>
 <tr><td>SBUS 无信号</td><td>接收机没供电 / 未共地</td><td>SBUS 是<b>单线</b>：信号线到 GPIO1 + 共地</td></tr>
 <tr><td>ELRS 接收机无数据</td><td>协议没设成 CRSF</td><td>地面站把 UART2 协议改为 CRSF</td></tr>
@@ -767,23 +801,29 @@ pio run -e esp32s3</code></pre>
 <td><b>新增两个 env</b>：<code>esp32s3_yaokun</code> / <code>esp32s3_yaokun_n4r2</code>（上游 env 未动）</td><td>🔧 硬件适配</td></tr>
 <tr><td><b>Y4</b></td><td>编译宏 <code>-DESPFC_DEV_PRESET_BRUSHED</code></td>
 <td>输出协议强制 PWM（有刷电机）</td><td>🔴 电机能否转动的关键</td></tr>
-<tr><td><b>Y5</b></td><td><code>ESPFC_FEATURE_MASK</code></td>
+<tr><td><b>—</b></td><td><code>ESPFC_FEATURE_MASK</code></td>
 <td>去掉 <code>FEATURE_DYNAMIC_FILTER</code>（0.3.0 已移除该掩码，改用
 <code>gyro_notch_count</code> 配置项）</td><td>🧩 版本适配</td></tr>
+<tr><td><b>Y5</b></td><td><code>Device/Baro/BaroMS5611.hpp/.cpp</code> + 探测链接线（v1.0.1）</td>
+<td><b>新增 MS5611 气压计驱动</b>：I2C 自动探测、OSR4096、一阶+二阶补偿、
+MS5607/AN520 兼容片 CRC 自动判别（新参数 <code>baro_math</code>）</td><td>🆕 设备驱动（v1.0.1）</td></tr>
+<tr><td><b>Y6</b></td><td><code>TargetESP32s3YaoKun.h</code> + <code>Hardware.cpp</code>（v1.0.1）</td>
+<td><b>陀螺仪 CS 默认改 42（PCB V2）</b>；IMU 安装朝向按总线自动分档
+（I2C 6050→CW270 / SPI 6500→CW90，BF 配置器 3D 实测标定）</td><td>🔧 板级默认值（v1.0.1）</td></tr>
 </table>
 
 <div class="ok">
 <b>总结：算法层 0 行改动</b><br>
 姿态解算（AHRS）、滤波、PID、混控、MSP 协议栈、地面站兼容性 ——
-<b>全部原样保留</b>。我们只改了"板级引脚"与"电机输出协议"这两件硬件相关的事。
+<b>全部原样保留</b>。我们只改了"板级引脚"、"电机输出协议"与"设备驱动/板级默认值"这些硬件相关的事。
 </div>
 
 <footer>
-<strong>耀坤S3 无人机 · ESP-FC 整理版　技术说明书　v1.0</strong><br>
+<strong>耀坤S3 无人机 · ESP-FC 整理版　技术说明书　v1.0.1</strong><br>
 上游项目：<a href="https://github.com/rtlopez/esp-fc">rtlopez/esp-fc</a>（MIT，© Ramon Lopez）<br>
 整理版：<a href="https://github.com/YaoKunS/esp-fc">github.com/YaoKunS/esp-fc</a>　·
 淘宝店铺 shop35432590.taobao.com<br>
-生成日期：2026-10-18　·　本手册为新增内容，不替代上游任何版权声明
+v1.0：2026-10-18　·　v1.0.1：2026-11-26　·　本手册为新增内容，不替代上游任何版权声明
 </footer>
 
 </div>

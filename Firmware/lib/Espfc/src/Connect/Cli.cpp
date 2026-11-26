@@ -472,6 +472,9 @@ const Cli::Param* Cli::initialize(ModelConfig& c)
 
       Param("baro_bus", &c.baro.bus, busDevChoices),
       Param("baro_dev", &c.baro.dev, baroDevChoices),
+      // MS5611 驱动压力补偿模式：-1=自动（按 PROM CRC 判 MS5611/AN520 系数）
+      // 0=MS5611 datasheet 公式，1=AN520/MS5607 公式。GY-63 贴 MS5607 时气压差一半，手动设 1 修正
+      Param("baro_math", &c.baro.math),
       Param("baro_lpf_type", &c.baro.filter.type, filterTypeChoices),
       Param("baro_lpf_freq", &c.baro.filter.freq),
 
