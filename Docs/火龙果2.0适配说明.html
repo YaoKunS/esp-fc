@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>微辣火龙果 2.0 —— ESP-FC耀坤版适配说明</title>
+<style>
+  :root{
+    --brand:#0f766e; --brand-dark:#0b5a54; --ink:#0f172a; --ink2:#334155;
+    --ink3:#64748b; --line:#e2e8f0; --bg:#ffffff; --bg2:#f8fafc;
+    --code-bg:#0f172a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg2); color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Hiragino Sans GB","Source Han Sans SC",sans-serif;
+    font-size:15px; line-height:1.85; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px 80px; background:var(--bg);
+         box-shadow:0 0 40px rgba(15,23,42,.06);}
+
+  .cover{padding:64px 24px 48px; background:linear-gradient(135deg,#0f172a 0%,#134e4a 55%,#0f766e 130%);
+         color:#fff; margin:0 -24px 40px;}
+  .cover .badge{display:inline-block; background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.25);
+         padding:4px 14px; border-radius:20px; font-size:12.5px; letter-spacing:.5px; margin-bottom:20px;}
+  .cover h1{margin:0 0 12px; font-size:40px; font-weight:800; letter-spacing:1px; line-height:1.3;}
+  .cover .sub{font-size:16.5px; color:#cbd5e1; margin-bottom:28px; font-weight:300;}
+  .cover .facts{display:flex; flex-wrap:wrap; gap:10px 30px; font-size:13.5px; color:#e2e8f0;
+         border-top:1px solid rgba(255,255,255,.16); padding-top:20px;}
+  .cover .facts b{color:#fff; font-weight:600;}
+
+  .toc{background:var(--bg2); border:1px solid var(--line); border-radius:12px;
+       padding:26px 30px; margin-bottom:48px;}
+  .toc h2{margin:0 0 16px; font-size:17px; color:var(--brand); border:0; padding:0;}
+  .toc ol{columns:2; column-gap:40px; margin:0; padding-left:22px; font-size:14px;}
+  .toc li{margin:5px 0; break-inside:avoid;}
+  .toc a{color:var(--ink2); text-decoration:none;}
+  .toc a:hover{color:var(--brand);}
+  .toc .d{font-size:12px; color:var(--ink3); margin-left:6px;}
+
+  h2{font-size:25px; font-weight:700; color:var(--brand); margin:56px 0 20px;
+     padding-bottom:12px; border-bottom:3px solid var(--brand); letter-spacing:.5px;}
+  h3{font-size:19px; font-weight:700; color:var(--ink); margin:36px 0 14px;
+     padding-left:13px; border-left:5px solid var(--brand);}
+  h4{font-size:16px; font-weight:700; color:var(--ink2); margin:24px 0 10px;}
+  p{margin:12px 0;}
+
+  code{background:#f1f5f9; color:#b91c1c; padding:2px 7px; border-radius:4px;
+       font-family:"Cascadia Mono","Consolas","Courier New",monospace; font-size:13.5px;}
+  pre{background:var(--code-bg); color:#e2e8f0; padding:18px 22px; border-radius:10px;
+      overflow-x:auto; font-size:13.5px; line-height:1.75;
+      font-family:"Cascadia Mono","Consolas","Courier New",monospace;}
+  pre code{background:none; color:inherit; padding:0; font-size:13.5px;}
+  .note{background:#eff6ff; border-left:5px solid #2563eb; padding:14px 20px; border-radius:0 8px 8px 0; margin:18px 0;}
+  .warn{background:#fff7ed; border-left:5px solid #ea580c; padding:14px 20px; border-radius:0 8px 8px 0; margin:18px 0;}
+  .danger{background:#fef2f2; border-left:5px solid #dc2626; padding:14px 20px; border-radius:0 8px 8px 0; margin:18px 0;}
+  .ok{background:#f0fdf4; border-left:5px solid #16a34a; padding:14px 20px; border-radius:0 8px 8px 0; margin:18px 0;}
+
+  table{width:100%; border-collapse:collapse; margin:18px 0; font-size:14px;}
+  th{background:#f1f5f9; color:var(--ink); font-weight:700; padding:11px 12px;
+     border:1px solid var(--line); text-align:left;}
+  td{padding:10px 12px; border:1px solid var(--line); vertical-align:top;}
+  tbody tr:nth-child(even){background:#fcfdfe;}
+  table.tight td, table.tight th{padding:7px 10px; font-size:13.5px;}
+  td code{white-space:nowrap;}
+
+  ul,ol{padding-left:26px;} li{margin:6px 0;}
+
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:20px 0;}
+  .card{background:var(--bg2); border:1px solid var(--line); border-radius:10px; padding:18px 22px;}
+  .card h5{margin:0 0 8px; font-size:14.5px; color:var(--brand); font-weight:700;}
+  .card p{margin:0; font-size:13.5px; color:var(--ink2); line-height:1.7;}
+
+  .step{display:flex; gap:16px; margin:14px 0; align-items:flex-start;}
+  .step .no{flex:0 0 34px; height:34px; border-radius:50%; background:var(--brand); color:#fff;
+       display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px;}
+  .step .tx{flex:1;}
+  .step .tx b{display:block; margin-bottom:2px; color:var(--ink);}
+  .step .tx span{font-size:13.5px; color:var(--ink3);}
+
+  .flow{display:flex; flex-direction:column; gap:0; margin:24px 0;}
+  .fnode{background:#fff; border:2px solid var(--line); border-radius:10px; padding:14px 18px;
+         display:flex; align-items:center; gap:14px;}
+  .fnode .tag{flex:0 0 auto; background:var(--brand); color:#fff; font-size:12px; font-weight:700;
+         padding:3px 10px; border-radius:12px;}
+  .fnode .ttl{font-weight:700; font-size:14.5px;}
+  .fnode .desc{font-size:13px; color:var(--ink3); margin-left:auto; text-align:right; max-width:52%;}
+  .farrow{height:22px; display:flex; justify-content:center; align-items:center; color:var(--ink3); font-size:16px;}
+  .fnode.hl{border-color:var(--brand); background:#fef2f2;}
+
+  /* ---- 以下为 Markdown 转换新增：引用块与分隔线 ---- */
+  blockquote{margin:16px 0; padding:10px 20px; border-radius:0 8px 8px 0;
+             background:var(--bg2); border-left:5px solid #94a3b8; color:var(--ink2);}
+  blockquote p{margin:4px 0;}
+  hr{border:0; border-top:1px solid var(--line); margin:34px 0;}
+
+  footer{margin-top:70px; padding-top:26px; border-top:2px solid var(--line);
+         text-align:center; color:var(--ink3); font-size:13px; line-height:2;}
+
+  @media print{
+    body{background:#fff;} .wrap{box-shadow:none; max-width:100%; padding:0;}
+    .toc{page-break-after:always;}
+    h2{page-break-after:avoid;} h3{page-break-after:avoid;}
+    table,pre,.fnode{page-break-inside:avoid;}
+    .cover{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+    *{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  }
+  @media (max-width:760px){
+    .grid2{grid-template-columns:1fr;} .toc ol{columns:1;}
+    .cover h1{font-size:28px;}
+    .fnode{flex-wrap:wrap;} .fnode .desc{max-width:100%; text-align:left; margin-left:0;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="cover"><span class="badge">微辣火龙果 2.0 · ESP-FC耀坤版 · V1.1</span><h1>微辣火龙果 2.0 —— ESP-FC耀坤版适配说明</h1><div class="sub">经典 ESP32 板型 · 与耀坤 S3 同系列板框的适配说明</div><div class="facts"><span>主控　<b>ESP32 经典片 WROOM（4MB，无 PSRAM）</b></span><span>编译环境　<b>pio run -e esp32_hlg20</b></span><span>硬件设计　<b>(c) 微辣火龙果（malagis / MildlySpicyDragon）</b></span><span>固件适配　<b>耀坤智联（YaoKunSmart）</b></span></div></div><div class="toc"><h2>目录</h2><ol><li><a href="#s1">一、板子与三个&quot;兄弟&quot;固件的关系</a></li><li><a href="#s2">二、与 S3 版（耀坤 PCB）的差异总表</a></li><li><a href="#s3">三、引脚总表（定稿）</a></li><li><a href="#s4">四、🔴 经典 ESP32 的铁律（与 S3 版不同，逐条都咬过人）</a></li><li><a href="#s5">五、IMU 朝向自动分档（沿用，零新逻辑）</a></li><li><a href="#s6">六、验证流程（三级，照 S3 版老规矩）</a></li><li><a href="#s7">七、故障速查</a></li><li><a href="#s8">八、编译与发布</a></li><li><a href="#s9">九、许可与致谢</a></li></ol></div><ul><li><strong>版本</strong>：<strong>V1.1</strong>（2026-11-27；首发火龙果适配为 v1.0.1，同日）</li><li><strong>V1.1 新增</strong>：开机 IDENTITY 横幅（硬件署 <code>(c) 微辣火龙果（malagis）</code>、 2025 星火奖明确归微辣火龙果项目、固件适配署耀坤智联）、出厂默认传感器全部 AUTO、 I2C 6050 分档统一 CW270（BF 3D 实测确认）。</li><li><strong>硬件</strong>：微辣火龙果 2.0 飞控（ESP32 DevKit V1 经典片，30 针，4MB Flash，无 PSRAM）</li><li><strong>硬件设计</strong>：(c) <strong>微辣火龙果（malagis / MildlySpicyDragon）</strong> —— OSHWHub：<a href="https://oshwhub.com/malagis/esp32-mini-plane">https://oshwhub.com/malagis/esp32-mini-plane</a> · B 站：<a href="https://space.bilibili.com/544479100">https://space.bilibili.com/544479100</a></li><li><strong>固件适配</strong>：耀坤智联（YaoKunSmart）· 上游 ESP-FC (c) Ramon Lopez（MIT）</li><li><strong>编译环境</strong>：<code>pio run -e esp32_hlg20</code>（发布件：<code>release/MildlySpicyDragon_火龙果2.0_ESP-FC耀坤适配版_*</code>）</li></ul>
+<blockquote><p>品牌口径（铁律）：<strong>硬件是火龙果作者的，固件是耀坤适配的</strong>，两板品牌相互独立；<br>英文品牌名固定写 <strong>MildlySpicyDragon</strong>（作者用户名，禁止意译）。</p></blockquote>
+<hr>
+<h2 id="s1">一、板子与三个"兄弟"固件的关系</h2>
+<p>火龙果 2.0 与耀坤 S3 无人机是<strong>同一系列、同一套 PCB 板框外形</strong>（2026-11-27 用户确认），自研飞控、Flix 耀坤整理版、ESP-FC V1.1 三个固件都已适配。因此：</p>
+<ul><li><strong>IMU 安装方向完全一致</strong> ⇒ ESP-FC 的朝向自动分档（按总线判，与板型无关）原样生效， 本适配<strong>不写任何方向代码</strong>；</li><li><strong>混控/电机布局沿用 S3 实测结论</strong>，只换引脚号；</li><li>180° 反插坑同样存在（见 §四）。</li></ul>
+<p>ESP-FC 上游本来就支持经典 ESP32，且其 VSPI（18/19/23/CS5）与 I2C（21/22）恰好与火龙果一致 —— 所以本适配只改了<strong>一个 Target 头文件 + 一个编译环境</strong>，上游算法与耀坤 S3 适配层零改动。</p>
+<h2 id="s2">二、与 S3 版（耀坤 PCB）的差异总表</h2>
+<table><thead><tr><th>项</th><th>耀坤 S3（V1.1）</th><th>火龙果 2.0（本版）</th><th>说明</th></tr></thead><tbody><tr><td>芯片</td><td>ESP32-S3 R8N8（8MB+PSRAM）</td><td><strong>ESP32 经典片 WROOM（4MB，无 PSRAM）</strong></td><td>env 不同，<strong>不可互刷</strong></td></tr><tr><td>编译宏</td><td><code>-DESPFC_TARGET_YAOKUN</code></td><td><code>-DESPFC_TARGET_HLG20</code></td><td>Target.h 里先于 <code>ESP32</code> 判断</td></tr><tr><td>电机 RR/FR/RL/FL</td><td>5 / 6 / 15 / 16</td><td><strong>27 / 33 / 26 / 32</strong></td><td>混控序号都 ≠ 丝印</td></tr><tr><td>IMU SPI CS</td><td>42（V2）/ 17（V1）</td><td><strong>5</strong></td><td>经典片无 GPIO42！</td></tr><tr><td>IMU I2C</td><td>SDA9 / SCL8</td><td><strong>SDA21 / SCL22</strong></td><td></td></tr><tr><td>MSP 串口</td><td>UART0 43/44 + 原生 USB CDC</td><td><strong>仅 UART0（GPIO1/3，板载 CH340）</strong></td><td>经典片无原生 USB</td></tr><tr><td>SBUS</td><td>GPIO1</td><td><strong>GPIO4</strong></td><td></td></tr><tr><td>蜂鸣器</td><td>39</td><td><strong>25</strong></td><td>都是有源，高电平响</td></tr><tr><td>LED</td><td>三色（41/7/14，只驱动蓝灯）</td><td><strong>单色灯 GPIO2</strong></td><td>拉电流接法</td></tr><tr><td>电池 ADC</td><td>GPIO2（1:2 分压）</td><td><strong>GPIO35（100K+100K 1:2 分压）</strong></td><td>GPIO35=ADC1，仅输入</td></tr><tr><td>朝向分档</td><td>6050→CW270 / 6500→CW90</td><td><strong>相同（原样生效）</strong></td><td>同系列板框</td></tr><tr><td>Flash 分区</td><td>default_8MB.csv</td><td><strong>partitions_4M_nota.csv</strong></td><td>app 上限 1.25MB，本版用 1.01MB</td></tr></tbody></table>
+<h2 id="s3">三、引脚总表（定稿）</h2>
+<p>引脚基线 = flix <code>board.h</code> 的 <code>BOARD_HLG_V2</code> 与自研 <code>config.h</code> 的 <code>PCB_HLG_V2</code>（两者逐脚一致）。</p>
+<table><thead><tr><th>GPIO</th><th>功能</th><th>ESP-FC 宏</th><th>strapping / 注意</th></tr></thead><tbody><tr><td>27</td><td>电机 右后 RR</td><td><code>ESPFC_OUTPUT_0</code></td><td>混控序号 1</td></tr><tr><td>33</td><td>电机 右前 FR</td><td><code>ESPFC_OUTPUT_1</code></td><td>混控序号 2</td></tr><tr><td>26</td><td>电机 左后 RL</td><td><code>ESPFC_OUTPUT_2</code></td><td>混控序号 3</td></tr><tr><td>32</td><td>电机 左前 FL</td><td><code>ESPFC_OUTPUT_3</code></td><td>混控序号 4</td></tr><tr><td>18 / 23 / 19</td><td>SPI SCLK / MOSI(SDI) / MISO(SDO)</td><td><code>ESPFC_SPI_0_*</code></td><td>VSPI 默认，勿动</td></tr><tr><td>5</td><td>MPU6500 CS</td><td><code>ESPFC_SPI_CS_GYRO</code></td><td>内部上拉；strapping 高=正常</td></tr><tr><td>22 / 21</td><td>I2C SCL / SDA</td><td><code>ESPFC_I2C_0_*</code>（SOFT）</td><td>排母：6050 / MS5611 / 磁罗盘</td></tr><tr><td>25</td><td>蜂鸣器</td><td><code>ESPFC_BUZZER_PIN</code></td><td>ADC2 组，仅输出无碍</td></tr><tr><td>35</td><td>电池 ADC</td><td><code>ESPFC_ADC_VBAT_PIN</code></td><td><strong>仅输入</strong>；分压 <code>2.0/4096</code></td></tr><tr><td>2</td><td>板载 LED</td><td><code>ESPFC_LED_PIN</code></td><td>strapping 低=下载；拉电流接法</td></tr><tr><td>4</td><td>SBUS 输入</td><td><code>ESPFC_INPUT_PIN</code></td><td></td></tr><tr><td>1 / 3</td><td>UART0 TX/RX（MSP）</td><td><code>ESPFC_SERIAL_0</code></td><td>板载 CH340，115200</td></tr><tr><td>13 / 14 / 12 / 15</td><td>光流 PMW3901（<strong>未启用</strong>）</td><td>—</td><td>本版无光流驱动</td></tr><tr><td>16 / 17</td><td>I2C1 预留（VL53L1X）</td><td>—</td><td>未启用；WROVER 模组被 PSRAM 占</td></tr></tbody></table>
+<p><strong>串口裁剪（🔴 重要）</strong>：上游经典 ESP32 模板把 <code>SERIAL_1</code> 配在 TX33/RX32 —— 正好是右前/左前电机脚，<code>SERIAL_2</code> 配在 17/16 —— 是 I2C1 预留。本 Target <strong>全部显式 -1</strong>，否则串口初始化会抢走电机。也<strong>不能定义</strong> <code>ESPFC_SERIAL_USB</code>（经典片无原生 USB），调试口固定 <code>SERIAL_UART_0</code>。</p>
+<h2 id="s4">四、🔴 经典 ESP32 的铁律（与 S3 版不同，逐条都咬过人）</h2>
+<ol><li><strong>只有 GPIO0~39</strong>：S3 版的 40 以上编号（如 V2 板 CS=42）在经典片上是 越界写寄存器（未定义行为）。本 Target 所有引脚 ≤39，不用的写 -1。</li><li><strong>GPIO6~11 是 Flash 专用</strong>，30 针 DevKit 上不能当 IO 用。</li><li><strong>ADC2 与 Wi-Fi 互斥</strong>：本固件 Wi-Fi 常开（ESP-NOW 无线 MSP）， 电池 ADC 必须落在 ADC1（32/33/34/35/36/39）。本板用 GPIO35=ADC1_CH7 ✅； <strong>将来改板也绝不能把 ADC 挪到 ADC2 组</strong>（2/4/12~15/25~27），否则读数恒 0 → 误判低电 → 蜂鸣器无限急鸣。</li><li><strong>GPIO12 = MTDI strapping</strong>：悬空有内部弱下拉（复位读低 → 3.3V Flash 正常）。 将来接光流模块时，模块 MIS 的上拉会让 Flash 判成 1.8V → 反复重启； 解法 = 烧 eFuse 固定 3.3V（官方推荐、不可逆）或加 10k 下拉。</li><li><strong>GPIO2 既是 LED 又是 strapping</strong>：拉电流接法（GPIO2→电阻→LED→GND） 在复位期呈高阻，不影响 boot；别把它改成灌电流或外加高电平。</li></ol>
+<h2 id="s5">五、IMU 朝向自动分档（沿用，零新逻辑）</h2>
+<p><code>gyro_align=DEFAULT</code> 时按总线自动选（与 S3 版同一套代码、同一组档位）：</p>
+<ul><li><strong>I2C 排母 MPU6050 → CW270</strong></li><li><strong>SPI 座 MPU6500 → CW90</strong></li></ul>
+<p>⚠️ 排母/SPI 座允许 <strong>180° 反插</strong>，插装方向一变正确档位就变（症状 = pitch/roll 双反相）。<strong>建议在模块和排母上做对位标记</strong>。现场试档：CLI <code>set gyro_align CW270</code>（6050）或 CW90（6500）实时生效——但 🔴 <strong><code>exit</code> 退出 CLI 会触发重启，<code>set</code> 未 <code>save</code> 的值会丢失</strong>，所以试档期间<strong>不要退出 CLI</strong>，直接在 CLI 里连着 BF 看 3D；确认对了再 <code>save</code>。换 IMU 类型后用 <code>set gyro_align DEFAULT</code> → <code>save</code> 恢复自动分档。</p>
+<h2 id="s6">六、验证流程（三级，照 S3 版老规矩）</h2>
+<table><thead><tr><th>级</th><th>项目</th><th>判据</th></tr></thead><tbody><tr><td>1 编译</td><td><code>pio run -e esp32_hlg20</code></td><td>通过；app ≤ 1.25MB（本版 1.01MB）</td></tr><tr><td>2 烧录</td><td>COM 口（板载 CH340），SHA 校验</td><td>串口有启动横幅、BF 能识别</td></tr><tr><td>3 台架</td><td><strong>清 NVS</strong>（换板型刷机必做）</td><td>CLI <code>defaults</code> → <code>save</code> → <code>reboot</code></td></tr><tr><td>3 台架</td><td>3D 姿态（6050 与 6500 各一次）</td><td>抬头=抬头、右倾=右倾</td></tr><tr><td>3 台架</td><td>电机测试（<strong>拆桨</strong>）</td><td>推油门对角两颗同转、偏航正确一对加速</td></tr><tr><td>3 台架</td><td>电压</td><td>万用表对比，误差 &lt; 0.2V</td></tr><tr><td>3 台架</td><td>蜂鸣器 / LED</td><td>上电提示音、状态灯正常</td></tr><tr><td>3 台架</td><td>解锁门控</td><td>未解锁推油门电机不转</td></tr></tbody></table>
+<h2 id="s7">七、故障速查</h2>
+<table><thead><tr><th>现象</th><th>根因</th><th>处理</th></tr></thead><tbody><tr><td>地面站搜不到板子</td><td>烧错 env（必须 <code>esp32_hlg20</code>）</td><td>换 env 重烧</td></tr><tr><td>上电无串口输出</td><td>CH340 驱动 / 接线</td><td>装驱动、查 GPIO1/3</td></tr><tr><td>烧录失败 / 反复重启</td><td>GPIO12 被拉高（光流模块）</td><td>拔模块；长期用 eFuse 或 10k 下拉</td></tr><tr><td>四电机全不转</td><td>漏 <code>-DESPFC_DEV_PRESET_BRUSHED</code></td><td>加宏重编</td></tr><tr><td>蜂鸣器常鸣</td><td>烧成上游 <code>esp32</code> 固件（其电机表含 25=蜂鸣器）</td><td>改烧 <code>esp32_hlg20</code></td></tr><tr><td>推油门不对角转</td><td>混控序号 ≠ 丝印（差一个交叉）</td><td>按 §三 OUTPUT 表核对</td></tr><tr><td>pitch/roll 双反相</td><td>模块 180° 反插</td><td>对位标记；<code>set gyro_align</code> 试档</td></tr><tr><td>换 IMU 后姿态错</td><td>NVS 固化旧 <code>gyro_align</code></td><td><code>set gyro_align DEFAULT</code> → <code>save</code></td></tr><tr><td>电压为 0 / 差一倍</td><td>ADC 被挪到 ADC2 组 / 系数错</td><td>保持 GPIO35，<code>2.0f/4096</code></td></tr><tr><td>气压计读不到</td><td>接线松 / SDA-SCL 对调拉死总线</td><td>查 VCC/GND/SDA(21)/SCL(22)，重插</td></tr><tr><td>app 烧不进去（超限）</td><td>4MB 分区 app 上限 1.25MB</td><td>盯固件体积，精简功能</td></tr></tbody></table>
+<h2 id="s8">八、编译与发布</h2>
+<pre><code>cd Firmware
+pio run -e esp32_hlg20                 # 编译（app ≈ 1.01MB / 1.25MB）
+pio run -e esp32_hlg20 -t upload --upload-port COMx   # 烧录（460800）
+python tools/pack_release.py --env esp32_hlg20 --board hlg20 --ver vX.Y.Z
+                                       # 打包：脱敏 + 合并单文件 + 中英指纹说明</code></pre>
+<p>发布件命名沿 flix 口径：<code>MildlySpicyDragon_火龙果2.0_ESP-FC耀坤适配版_&lt;版本&gt;_&lt;日期&gt;_*</code>（英文品牌 = 作者用户名 MildlySpicyDragon，禁意译；不带"耀坤智联"字段，耀坤署名只在文档内的"固件适配"栏）。</p>
+<h2 id="s9">九、许可与致谢</h2>
+<ul><li>上游 ESP-FC：(c) Ramon Lopez，MIT License</li><li>火龙果 2.0 PCB 硬件：(c) 微辣火龙果（malagis / MildlySpicyDragon）</li><li>本适配由耀坤智联（YaoKunS / YaoKunSmart）完成，仅新增板级定义与文档， 未改动上游任何算法代码；发布物不含任何本机路径与账号信息。</li></ul>
+<footer>本页由 <code>Firmware/tools/md2html.py</code> 从 <code>火龙果2.0适配说明.md</code> 生成 · 内容与 Markdown 版同步 · 2026-11-28 00:18<br>上游 ESP-FC (c) Ramon Lopez（MIT） · 耀坤智联（YaoKunSmart）固件适配</footer>
+</div>
+</body>
+</html>

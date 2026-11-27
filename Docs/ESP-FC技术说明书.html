@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>耀坤S3无人机 · ESP-FC 整理版　技术说明书</title>
+<title>耀坤S3无人机 · ESP-FC耀坤版　技术说明书</title>
 <style>
   :root{
     --brand:#0f766e; --brand-dark:#0b5a54; --ink:#0f172a; --ink2:#334155;
@@ -111,7 +111,7 @@
 
 <div class="cover">
   <span class="badge">开源飞控 ESP-FC · 耀坤 S3 硬件适配版 V1.1（2026-11-27）</span>
-  <h1>耀坤S3无人机 · ESP-FC 整理版</h1>
+  <h1>耀坤S3无人机 · ESP-FC耀坤版</h1>
   <div class="sub">MSP 协议全兼容地面站　·　8520 空心杯有刷电机适配　·　Betaflight 配置器直接识别</div>
   <div class="facts">
     <span>主控　<b>ESP32-S3</b>（R8N8 / N4R2）</span>
@@ -153,7 +153,7 @@
 可以直接连上、直接识别、直接调参 —— 不需要专用上位机。</p>
 
 <p>本仓库是 <a href="https://github.com/rtlopez/esp-fc">rtlopez/esp-fc</a> 的
-<strong>耀坤整理版 + 耀坤 S3 硬件适配</strong>。目标是让耀坤自研的 S3 四轴
+<strong>ESP-FC耀坤版 + 耀坤 S3 硬件适配</strong>。目标是让耀坤自研的 S3 四轴
 （配 8520 空心杯电机）用上这套成熟的开源内核。</p>
 
 <div class="grid2">
@@ -642,7 +642,7 @@ ESP-FC 的加速度计校准同样需要<b>把机身摆放成六面</b>。
 <h3>10.1 编译环境一览</h3>
 
 <table class="tight">
-<tr><th>env 名</th><th>平台</th><th>用途</th><th>本整理版</th></tr>
+<tr><th>env 名</th><th>平台</th><th>用途</th><th>本版</th></tr>
 <tr><td><code>esp32</code></td><td>ESP32</td><td>经典 ESP32（LOLIN32）</td><td>上游原样</td></tr>
 <tr><td><code>esp32s3</code></td><td>ESP32-S3</td><td>通用 S3 模板</td><td>上游原样（<b>勿烧本板</b>）</td></tr>
 <tr><td><code>esp32s2</code></td><td>ESP32-S2</td><td>SAOLA-1</td><td>上游原样</td></tr>
@@ -841,9 +841,9 @@ MS5607/AN520 兼容片 CRC 自动判别（新参数 <code>baro_math</code>）</t
 </div>
 
 <footer>
-<strong>耀坤S3 无人机 · ESP-FC 整理版　技术说明书　V1.1</strong><br>
+<strong>耀坤S3 无人机 · ESP-FC耀坤版　技术说明书　V1.1</strong><br>
 上游项目：<a href="https://github.com/rtlopez/esp-fc">rtlopez/esp-fc</a>（MIT，© Ramon Lopez）<br>
-整理版：<a href="https://github.com/YaoKunS/esp-fc">github.com/YaoKunS/esp-fc</a>　·
+本版：<a href="https://github.com/YaoKunS/esp-fc">github.com/YaoKunS/esp-fc</a>　·
 淘宝店铺 shop35432590.taobao.com<br>
 v1.0：2026-10-18　·　v1.0.1：2026-11-26　·　V1.1：2026-11-27　·　本手册为新增内容，不替代上游任何版权声明
 </footer>

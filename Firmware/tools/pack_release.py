@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-pack_release.py —— ESP-FC 耀坤整理版 固件打包 + 中英文指纹说明生成
+pack_release.py —— ESP-FC耀坤版 固件打包 + 中英文指纹说明生成
 ===============================================================================
 用途
 ----
@@ -352,15 +352,15 @@ def build_context(env, version, board):
 
 # ── 指纹说明模板（中/英） ────────────────────────────────────────────────────
 
-CN_TMPL = """# 耀坤S3无人机 / ESP-FC 整理版 —— 固件指纹与烧录说明
+CN_TMPL = """# 耀坤S3无人机 / ESP-FC耀坤版 —— 固件指纹与烧录说明
 
 ## 一、这份固件是什么
 
-基于开源飞控 **ESP-FC**（原作者 Ramon Lopez）的**耀坤整理版**。
+基于开源飞控 **ESP-FC**（原作者 Ramon Lopez）的**ESP-FC耀坤版**。
 在保留上游全部代码与 MIT 许可的前提下，新增了耀坤 S3 硬件的板级适配。
 
 - **上游项目**：<https://github.com/rtlopez/esp-fc>（MIT，`(c) Ramon Lopez`）
-- **整理版仓库**：<https://github.com/YaoKunS/esp-fc>（分支 `yaokun-organized`）
+- **本版仓库**：<https://github.com/YaoKunS/esp-fc>（分支 `yaokun-organized`）
 - **硬件对应**：耀坤 S3 无人机（ESP32-S3，{flash}MB Flash + {psram}）
 - **电机**：4 × **8520 空心杯有刷电机**，GPIO **6 / 5 / 15 / 16**（FR / RR / RL / FL），**PWM 输出**
 - **传感器**：MPU6500（SPI，**CS=GPIO42**，v1.0.1 起默认；V1 老板=17，CLI
@@ -384,7 +384,7 @@ CN_TMPL = """# 耀坤S3无人机 / ESP-FC 整理版 —— 固件指纹与烧录
 
 | 项目 | 内容 |
 | --- | --- |
-| 固件版本 | **{version}**（耀坤整理版） |
+| 固件版本 | **{version}**（ESP-FC耀坤版） |
 | 品牌 | 耀坤智联 / YaoKunS / YaoKunSmart |
 | 编译环境 | `pio run -e {env}` |
 | 编译时间 | {built} |
@@ -494,6 +494,12 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 
 ## 八、V1.1 主要改动
 
+- **修复配置器保存后陀螺仪被永久关闭**：`MSP_SET_SENSOR_ALIGNMENT`(220)
+  原会依据 `gyro_enable_mask` 把 `gyro_dev` 写成 `NONE`，而该掩码读回自运行时
+  探测结果 —— 陀螺仪一旦暂时未识别就会读到 0，保存后固化进 NVS，之后每次开机
+  都跳过探测。现改为只消费该字节、不改写 `gyro_dev`，**开机提示音、各状态音效、
+  全部 LED 灯效与其余传感器配置一律不变**；如需显式关闭陀螺仪仍可用
+  CLI `set gyro_dev NONE` + `save`。
 - **修复蜂鸣器上电常鸣**：耀坤 S3 用高电平触发有源蜂鸣器（S8050），
   出厂默认 `pin_buzzer_invert` 由上游的反相 `1` 改为同相 `0`，上电不再持续
   鸣叫；需要响时仍由事件驱动鸣叫。**开机提示音、各状态音效与全部 LED
@@ -526,7 +532,7 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 从固件镜像提取，与 bin 严格一致。发布物中**不含任何本机路径**。
 """
 
-EN_TMPL = """# YaoKun S3 Drone / ESP-FC Organized Edition — Firmware Fingerprint & Flashing Guide
+EN_TMPL = """# YaoKun S3 Drone / ESP-FC YaoKun Edition — Firmware Fingerprint & Flashing Guide
 
 ## 1. What this firmware is
 
@@ -563,7 +569,7 @@ adaptation for the YaoKun S3 hardware.
 
 | Item | Value |
 | --- | --- |
-| Firmware version | **{version}** (YaoKun Organized Edition) |
+| Firmware version | **{version}** (ESP-FC YaoKun Edition) |
 | Brand | YaoKunSmart / YaoKunS |
 | Build environment | `pio run -e {env}` |
 | Build time | {built_en} |
@@ -679,6 +685,13 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 
 ## 8. What's new in V1.1
 
+- **Fixed Configurator permanently disabling the gyro after a save**:
+  `MSP_SET_SENSOR_ALIGNMENT` (220) used to write `gyro_dev = NONE` from
+  `gyro_enable_mask`, which is read back from runtime detection. If the gyro was
+  momentarily not detected, saving in Configurator wrote 0 and persisted it to NVS,
+  so every later boot skipped detection. The byte is now consumed but ignored;
+  **startup beep, status beeps, LED effects and all other sensor settings are
+  unchanged**. `set gyro_dev NONE` + `save` still disables it explicitly.
 - **Fixed buzzer sounding continuously at power-on**: the YaoKun S3 uses an
   active-high buzzer (S8050), so `pin_buzzer_invert` now ships as `0`
   (non-inverted) instead of upstream's `1`. **The startup beep, all status
@@ -727,7 +740,7 @@ HLG_CN_TMPL = """# 微辣火龙果 2.0 / ESP-FC 耀坤适配版 —— 固件指
 
 ## 一、这份固件是什么
 
-基于开源飞控 **ESP-FC**（原作者 Ramon Lopez）的**耀坤整理版**，
+基于开源飞控 **ESP-FC**（原作者 Ramon Lopez）的**ESP-FC耀坤版**，
 为**微辣火龙果 2.0 飞控**做的板级适配。
 
 - **上游项目**：<https://github.com/rtlopez/esp-fc>（MIT，`(c) Ramon Lopez`）
@@ -761,7 +774,7 @@ HLG_CN_TMPL = """# 微辣火龙果 2.0 / ESP-FC 耀坤适配版 —— 固件指
 
 | 项目 | 内容 |
 | --- | --- |
-| 固件版本 | **{version}**（耀坤整理版 · 火龙果 2.0 适配） |
+| 固件版本 | **{version}**（ESP-FC耀坤版 · 火龙果 2.0 适配） |
 | 品牌 | 硬件 © 微辣火龙果（malagis / MildlySpicyDragon）· 固件适配 耀坤智联 |
 | 编译环境 | `pio run -e {env}` |
 | 编译时间 | {built} |
@@ -881,6 +894,10 @@ esptool --chip esp32 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 
 ## 八、本版（V1.1）火龙果适配要点
 
+- **修复配置器保存后陀螺仪被永久关闭**：同耀坤 S3 版，`MSP_SET_SENSOR_ALIGNMENT`(220)
+  不再依据 `gyro_enable_mask` 改写 `gyro_dev`，避免陀螺仪暂时未识别时被写成
+  `NONE` 并固化进 NVS、之后每次开机都不探测。**开机提示音、各状态音效、
+  全部 LED 灯效与其余传感器配置一律不变**。
 - **修复蜂鸣器上电常鸣**：本板 GPIO25 蜂鸣器高电平触发，出厂默认
   `pin_buzzer_invert=0`（同相），上电不再持续鸣叫；**开机提示音、各状态
   音效与全部 LED 灯效保持原样**，`beeperMask` 及音效/灯效配置未改。
@@ -957,7 +974,7 @@ adaptation for the **MildlySpicyDragon 2.0 flight controller**.
 
 | Item | Value |
 | --- | --- |
-| Firmware version | **{version}** (YaoKun Organized Edition · HLG 2.0 adaptation) |
+| Firmware version | **{version}** (ESP-FC YaoKun Edition · HLG 2.0 adaptation) |
 | Brand | Hardware (c) MildlySpicyDragon (malagis) · Firmware adaptation YaoKunSmart |
 | Build environment | `pio run -e {env}` |
 | Build time | {built_en} |
@@ -1086,6 +1103,11 @@ esptool --chip esp32 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 
 ## 8. What's new for the HLG 2.0 in V1.1
 
+- **Fixed Configurator permanently disabling the gyro after a save**: as on the
+  YaoKun S3, `MSP_SET_SENSOR_ALIGNMENT` (220) no longer rewrites `gyro_dev` from
+  `gyro_enable_mask`, so a momentary detection miss can no longer persist `NONE`
+  to NVS. **Startup beep, status beeps, LED effects and all other sensor
+  settings are unchanged**.
 - **Fixed buzzer sounding continuously at power-on**: the GPIO25 buzzer is
   active-high, so `pin_buzzer_invert` now ships as `0` (non-inverted). **Startup
   beep, all status beeps and all LED effects are unchanged**; `beeperMask` and
@@ -1296,7 +1318,7 @@ def markdown_to_text(md):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="ESP-FC 耀坤整理版 固件打包与指纹说明生成")
+    ap = argparse.ArgumentParser(description="ESP-FC耀坤版 固件打包与指纹说明生成")
     ap.add_argument("--env", default="esp32s3_yaokun", help="PlatformIO 编译环境名")
     ap.add_argument("--ver", default="V1.1", help="固件版本号（当前发布版 V1.1，2026-11-27）")
     ap.add_argument("--no-merge", action="store_true", help="只生成说明，不做合并")

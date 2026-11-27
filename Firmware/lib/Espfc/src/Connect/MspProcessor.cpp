@@ -620,8 +620,43 @@ void MspProcessor::processCommand(MspMessage& m, MspResponse& r, Stream::ReadWri
       // API >= 1.41 - support the gyro_to_use and alignment for gyros 1 & 2
       if (m.remain() >= 1)
       {
-        uint8_t gyroEnableMask = m.readU8(); // gyro_enable_mask
-        _model.config.gyro.dev = gyroEnableMask & 1 ? GYRO_AUTO : GYRO_NONE;
+        /*
+         * 🔴 这里必须把 gyro_enable_mask 这个字节**读掉**，但绝不能再依据它
+         *    改写 config.gyro.dev（2026-11-27 修复「两板陀螺仪同时不识别」）。
+         *
+         * 【原实现造成的死循环】
+         *   原代码：config.gyro.dev = gyroEnableMask & 1 ? GYRO_AUTO : GYRO_NONE;
+         *   而 MSP_SENSOR_ALIGNMENT(126) 读回的 gyro_enable_mask 并不是用户配置，
+         *   是本文件上方写的 `_model.state.gyro.present ? 1 : 0` —— 一个**运行时
+         *   探测结果**。于是只要某次开机陀螺仪暂时没探测到（模块未插好、上电
+         *   时序、配置器在启动瞬间就连接等），BF 读回就是 0；用户在配置器里
+         *   点「保存」把整帧写回 220，dev 就被改成 GYRO_NONE，再经
+         *   MSP_EEPROM_WRITE -> _model.save() 固化进 NVS。
+         *   之后每次开机 Hardware::detectGyro() 第一行
+         *   `if (config.gyro.dev == GYRO_NONE) return;` 直接早退，陀螺仪永久不
+         *   识别；126 读回的 mask 仍是 0，于是「再保存一次」也永远无法自愈。
+         *   2026-11-27 实测：耀坤 S3 与火龙果 2.0 同时中招，CLI
+         *   `get gyro_dev` 均为 NONE，而 gyro_bus / gyro_align / baro / mag
+         *   全部正常，启动日志完全没有 GYRO INIT / ACCEL INIT 行。
+         *
+         * 【为什么改成「忽略」而不是「mask=0 时强制设回 AUTO」】
+         *   ESP-FC 是单 IMU + 自动探测架构，GYRO_AUTO 即「启用探测」，BF 的
+         *   gyro_enable_mask（多陀螺仪选通）在本固件里没有对应语义。保持
+         *   config.gyro.dev 原值不动是行为改动最小的方案：
+         *     - 出厂默认 GYRO_AUTO 不会被任何配置器保存动作关掉（本次目标）；
+         *     - 用户若确实要关闭陀螺仪，仍可 CLI `set gyro_dev NONE` + `save`，
+         *       该显式设置不会被这里覆盖；
+         *     - 也不会把用户手动选定的具体设备型号冲成 AUTO。
+         *   注意：本改动只防止「再次被写坏」，不会把 NVS 里已有的 GYRO_NONE
+         *   自动改回 AUTO；历史脏值仍需 CLI `set gyro_dev AUTO` + `save` 修一次。
+         *
+         * 【为什么这个 readU8 不能删】
+         *   220 帧里 mask 之后还可能跟 6 字节（gyro1 roll/pitch/yaw）。若不消费
+         *   这一字节，下面的 `if (m.remain() >= 6)` 会把 mask 当成长度、帧指针
+         *   错位，后续读出的对齐/角度全是脏数据。故必须读、但不用（写法与上方
+         *   `m.readU8(); // discard deprecated acc align` 一致）。
+         */
+        m.readU8(); // gyro_enable_mask：只消费、故意不使用（理由见上）
       }
       if (m.remain() >= 6)
       {

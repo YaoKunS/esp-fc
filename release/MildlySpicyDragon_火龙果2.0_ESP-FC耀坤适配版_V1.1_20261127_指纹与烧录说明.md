@@ -2,7 +2,7 @@
 
 ## 一、这份固件是什么
 
-基于开源飞控 **ESP-FC**（原作者 Ramon Lopez）的**耀坤整理版**，
+基于开源飞控 **ESP-FC**（原作者 Ramon Lopez）的**ESP-FC耀坤版**，
 为**微辣火龙果 2.0 飞控**做的板级适配。
 
 - **上游项目**：<https://github.com/rtlopez/esp-fc>（MIT，`(c) Ramon Lopez`）
@@ -36,13 +36,13 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 固件版本 | **V1.1**（耀坤整理版 · 火龙果 2.0 适配） |
+| 固件版本 | **V1.1**（ESP-FC耀坤版 · 火龙果 2.0 适配） |
 | 品牌 | 硬件 © 微辣火龙果（malagis / MildlySpicyDragon）· 固件适配 耀坤智联 |
 | 编译环境 | `pio run -e esp32_hlg20` |
-| 编译时间 | 2026-11-27 19:14:48 |
+| 编译时间 | 2026-11-27 21:18:55 |
 | 工具链 | PlatformIO Core（espressif32 + arduino） |
 | 关键编译宏 | `-DESPFC_TARGET_HLG20` `-DESPFC_DEV_PRESET_BRUSHED` |
-| 应用程序大小 | 1,038,960 B (0xFDA70) |
+| 应用程序大小 | 1,038,944 B (0xFDA60) |
 
 > 🔴 **两个宏都不能删**：
 > `-DESPFC_TARGET_HLG20` 决定用火龙果引脚（否则用上游经典 ESP32 模板的
@@ -97,7 +97,7 @@ certutil -hashfile "MildlySpicyDragon_火龙果2.0_ESP-FC耀坤适配版_V1.1_20
 sha256sum "MildlySpicyDragon_火龙果2.0_ESP-FC耀坤适配版_V1.1_20261127_merged.bin"
 ```
 
-→ 应为 **983c0b8f4e85fd940b26ffc3caf21271e2bbfd61465874d3e442fb491a179bc5**
+→ 应为 **90a475dffd93e90ba6fbd2da9964b692aba7a575cf498b553fd35c9ce34201e7**
 
 **② 串口确认**
 
@@ -127,8 +127,8 @@ esptool --chip esp32 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 | `bootloader.bin` | `0x1000` | `7da2252586bc50961e0692b4aeef79d6569fa257466246c860965101e4165476` | 18,976 B (0x4A20) |
 | `partitions.bin` | `0x8000` | `9d237d2449dfaaae40077a90f7f9f5731112bff6a30e6c7824be80d5fb039953` | 3,072 B (0xC00) |
 | `boot_app0.bin` | `0xE000` | `f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0` | 8,192 B (0x2000) |
-| `firmware.bin` | `0x10000` | `7321f606e5688ce46b644a0c4a9637ccf730f945c6d7436f5216205fd6e7c52a` | 1,038,960 B (0xFDA70) |
-| **合并单文件固件** | `0x0` 整体刷 | `983c0b8f4e85fd940b26ffc3caf21271e2bbfd61465874d3e442fb491a179bc5` | 1,105,920 B (0x10E000) |
+| `firmware.bin` | `0x10000` | `4051097836ccc7604bc70e51895a6b2c5a93213ff1e0fc14581ce6ddb6e157dd` | 1,038,944 B (0xFDA60) |
+| **合并单文件固件** | `0x0` 整体刷 | `90a475dffd93e90ba6fbd2da9964b692aba7a575cf498b553fd35c9ce34201e7` | 1,105,920 B (0x10E000) |
 
 - 合并布局：`0x1000` bootloader（经典 ESP32；`0x0`~`0x1000` 留 0xFF） `+ 0x8000` 分区表 `+ 0xE000` boot_app0 `+ 0x10000` 应用程序（段间填 0xFF）
 - Flash 容量：**4MB**（如需二次确认：`esptool image-info <bin>`）
@@ -161,6 +161,10 @@ esptool --chip esp32 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 
 ## 八、本版（V1.1）火龙果适配要点
 
+- **修复配置器保存后陀螺仪被永久关闭**：同耀坤 S3 版，`MSP_SET_SENSOR_ALIGNMENT`(220)
+  不再依据 `gyro_enable_mask` 改写 `gyro_dev`，避免陀螺仪暂时未识别时被写成
+  `NONE` 并固化进 NVS、之后每次开机都不探测。**开机提示音、各状态音效、
+  全部 LED 灯效与其余传感器配置一律不变**。
 - **修复蜂鸣器上电常鸣**：本板 GPIO25 蜂鸣器高电平触发，出厂默认
   `pin_buzzer_invert=0`（同相），上电不再持续鸣叫；**开机提示音、各状态
   音效与全部 LED 灯效保持原样**，`beeperMask` 及音效/灯效配置未改。

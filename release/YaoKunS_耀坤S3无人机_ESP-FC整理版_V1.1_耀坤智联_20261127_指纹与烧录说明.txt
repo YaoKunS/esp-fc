@@ -1,14 +1,14 @@
-耀坤S3无人机 / ESP-FC 整理版 —— 固件指纹与烧录说明
+耀坤S3无人机 / ESP-FC耀坤版 —— 固件指纹与烧录说明
 ==================================================
 
 一、这份固件是什么
 ------------------
 
-基于开源飞控 ESP-FC（原作者 Ramon Lopez）的耀坤整理版。
+基于开源飞控 ESP-FC（原作者 Ramon Lopez）的ESP-FC耀坤版。
 在保留上游全部代码与 MIT 许可的前提下，新增了耀坤 S3 硬件的板级适配。
 
 - 上游项目：<https://github.com/rtlopez/esp-fc>（MIT，(c) Ramon Lopez）
-- 整理版仓库：<https://github.com/YaoKunS/esp-fc>（分支 yaokun-organized）
+- 本版仓库：<https://github.com/YaoKunS/esp-fc>（分支 yaokun-organized）
 - 硬件对应：耀坤 S3 无人机（ESP32-S3，8MB Flash + 8MB OPI 八线 PSRAM）
 - 电机：4 × 8520 空心杯有刷电机，GPIO 6 / 5 / 15 / 16（FR / RR / RL / FL），PWM 输出
 - 传感器：MPU6500（SPI，CS=GPIO42，v1.0.1 起默认；V1 老板=17，CLI
@@ -33,13 +33,13 @@
 
 项目          内容
 ------------  ----------------------------------------------------
-固件版本      V1.1（耀坤整理版）
+固件版本      V1.1（ESP-FC耀坤版）
 品牌          耀坤智联 / YaoKunS / YaoKunSmart
 编译环境      pio run -e esp32s3_yaokun
-编译时间      2026-11-27 17:35:27
+编译时间      2026-11-27 21:18:54
 工具链        PlatformIO Core（espressif32 + arduino）
 关键编译宏    -DESPFC_TARGET_YAOKUN -DESPFC_DEV_PRESET_BRUSHED
-应用程序大小  998,320 B (0xF3BB0)
+应用程序大小  998,304 B (0xF3BA0)
 
   🔴 两个宏都不能删：
   -DESPFC_TARGET_YAOKUN 决定用耀坤引脚（否则用上游 39/40/41/42，电机不转、蜂鸣器常鸣）；
@@ -81,7 +81,7 @@ certutil -hashfile "YaoKunS_耀坤S3无人机_ESP-FC整理版_V1.1_耀坤智联_
 
 sha256sum "YaoKunS_耀坤S3无人机_ESP-FC整理版_V1.1_耀坤智联_20261127_merged.bin"
 
-→ 应为 34c3c70f532626a831460212b07b4754a67bd71b7a90678b90ca9ab15348618e
+→ 应为 5563fa384817300852f2c08034a55d1883a754eae4843f6a4090e0180ee20b2a
 
 ② 串口确认
 
@@ -110,8 +110,8 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 bootloader.bin      0x0           1776e4dd896a69d0a5c2e79957b0e2a88aa4129b1381d6478683515a1f6af343    15,104 B (0x3B00)
 partitions.bin      0x8000        1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c    3,072 B (0xC00)
 boot_app0.bin       0xE000        f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0    8,192 B (0x2000)
-firmware.bin        0x10000       8ba5ae9e0f79c55add45411a47a2d3403ee991a0863cda7a2734bc8962d0bef2    998,320 B (0xF3BB0)
-合并单文件固件      0x0 整体刷    34c3c70f532626a831460212b07b4754a67bd71b7a90678b90ca9ab15348618e    1,064,960 B (0x104000)
+firmware.bin        0x10000       9ebfe2316eada8bc7f85807aa1e18bbf3667ad2f888ffaee930a595ddf1a1115    998,304 B (0xF3BA0)
+合并单文件固件      0x0 整体刷    5563fa384817300852f2c08034a55d1883a754eae4843f6a4090e0180ee20b2a    1,064,960 B (0x104000)
 
 - 合并布局：0x0 bootloader + 0x8000 分区表 + 0xE000 boot_app0 + 0x10000 应用程序（段间填 0xFF）
 - Flash 容量：8MB（如需二次确认：esptool image-info <bin>）
@@ -146,6 +146,12 @@ ELRS 接收机无数据         协议没设成 CRSF                  地面站�
 八、V1.1 主要改动
 -----------------
 
+- 修复配置器保存后陀螺仪被永久关闭：MSP_SET_SENSOR_ALIGNMENT(220)
+  原会依据 gyro_enable_mask 把 gyro_dev 写成 NONE，而该掩码读回自运行时
+  探测结果 —— 陀螺仪一旦暂时未识别就会读到 0，保存后固化进 NVS，之后每次开机
+  都跳过探测。现改为只消费该字节、不改写 gyro_dev，开机提示音、各状态音效、
+  全部 LED 灯效与其余传感器配置一律不变；如需显式关闭陀螺仪仍可用
+  CLI set gyro_dev NONE + save。
 - 修复蜂鸣器上电常鸣：耀坤 S3 用高电平触发有源蜂鸣器（S8050），
   出厂默认 pin_buzzer_invert 由上游的反相 1 改为同相 0，上电不再持续
   鸣叫；需要响时仍由事件驱动鸣叫。开机提示音、各状态音效与全部 LED

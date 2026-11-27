@@ -1,6 +1,6 @@
 > 开源飞控 ESP-FC · 耀坤 S3 硬件适配版 V1.1（2026-11-27）
 
-# 耀坤S3无人机 · ESP-FC 整理版
+# 耀坤S3无人机 · ESP-FC耀坤版
 
 *MSP 协议全兼容地面站　·　8520 空心杯有刷电机适配　·　Betaflight 配置器直接识别*
 
@@ -33,7 +33,7 @@
 
 ESP-FC 是一款运行在 **ESP32** 上的开源飞控固件，定位是**迷你、低成本、高性能**。它最大的特色是**协议兼容**：固件实现的是标准的 **Betaflight / Cleanflight MSP 协议 v2**，所以市面上的 **Betaflight Configurator** 和 **Cleanflight Configurator** 可以直接连上、直接识别、直接调参 —— 不需要专用上位机。
 
-本仓库是 [rtlopez/esp-fc](https://github.com/rtlopez/esp-fc) 的 **耀坤整理版 + 耀坤 S3 硬件适配**。目标是让耀坤自研的 S3 四轴 （配 8520 空心杯电机）用上这套成熟的开源内核。
+本仓库是 [rtlopez/esp-fc](https://github.com/rtlopez/esp-fc) 的 **ESP-FC耀坤版 + 耀坤 S3 硬件适配**。目标是让耀坤自研的 S3 四轴 （配 8520 空心杯电机）用上这套成熟的开源内核。
 
 #### 上游原版（master）
 
@@ -447,7 +447,7 @@ ESP-FC 的安全逻辑与 Betaflight 同源，耀坤板上全部生效：
 
 ### 10.1 编译环境一览
 
-| env 名 | 平台 | 用途 | 本整理版 |
+| env 名 | 平台 | 用途 | 本版 |
 |---|---|---|---|
 | `esp32` | ESP32 | 经典 ESP32（LOLIN32） | 上游原样 |
 | `esp32s3` | ESP32-S3 | 通用 S3 模板 | 上游原样（**勿烧本板**） |
@@ -624,7 +624,7 @@ ESP-FC 是**纯姿态自稳 + 手动油门**架构。
 > **总结：算法层 0 行改动**
 > 姿态解算（AHRS）、滤波、PID、混控、MSP 协议栈、地面站兼容性 —— **全部原样保留**。我们只改了"板级引脚"、"电机输出协议"与"设备驱动/板级默认值"这些硬件相关的事。
 
-**耀坤S3 无人机 · ESP-FC 整理版　技术说明书　V1.1**  
+**耀坤S3 无人机 · ESP-FC耀坤版　技术说明书　V1.1**  
 上游项目：[rtlopez/esp-fc](https://github.com/rtlopez/esp-fc)（MIT，© Ramon Lopez）  
-整理版：[github.com/YaoKunS/esp-fc](https://github.com/YaoKunS/esp-fc)　· 淘宝店铺 shop35432590.taobao.com  
+本版：[github.com/YaoKunS/esp-fc](https://github.com/YaoKunS/esp-fc)　· 淘宝店铺 shop35432590.taobao.com  
 v1.0：2026-10-18　·　v1.0.1：2026-11-26　·　V1.1：2026-11-27　·　本手册为新增内容，不替代上游任何版权声明

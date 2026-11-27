@@ -1,4 +1,4 @@
-YaoKun S3 Drone / ESP-FC Organized Edition — Firmware Fingerprint & Flashing Guide
+YaoKun S3 Drone / ESP-FC YaoKun Edition — Firmware Fingerprint & Flashing Guide
 ==============================================================================
 
 1. What this firmware is
@@ -38,13 +38,13 @@ adaptation for the YaoKun S3 hardware.
 
 Item               Value
 -----------------  ----------------------------------------------------
-Firmware version   V1.1 (YaoKun Organized Edition)
+Firmware version   V1.1 (ESP-FC YaoKun Edition)
 Brand              YaoKunSmart / YaoKunS
 Build environment  pio run -e esp32s3_yaokun
-Build time         Nov 27 2026 17:35:27
+Build time         Nov 27 2026 21:18:54
 Toolchain          PlatformIO Core (espressif32 + arduino)
 Key build flags    -DESPFC_TARGET_YAOKUN -DESPFC_DEV_PRESET_BRUSHED
-Application size   998,320 B (0xF3BB0)
+Application size   998,304 B (0xF3BA0)
 
   🔴 Neither macro may be removed:
   -DESPFC_TARGET_YAOKUN selects the YaoKun pin map (otherwise upstream's 39/40/41/42 are
@@ -88,7 +88,7 @@ certutil -hashfile "YaoKunS_耀坤S3无人机_ESP-FC整理版_V1.1_耀坤智联_
 
 sha256sum "YaoKunS_耀坤S3无人机_ESP-FC整理版_V1.1_耀坤智联_20261127_merged.bin"
 
-→ must equal 34c3c70f532626a831460212b07b4754a67bd71b7a90678b90ca9ab15348618e
+→ must equal 5563fa384817300852f2c08034a55d1883a754eae4843f6a4090e0180ee20b2a
 
 ② Serial confirmation
 
@@ -117,8 +117,8 @@ Artifact            Flash address  SHA-256                                      
 bootloader.bin      0x0            1776e4dd896a69d0a5c2e79957b0e2a88aa4129b1381d6478683515a1f6af343    15,104 B (0x3B00)
 partitions.bin      0x8000         1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c    3,072 B (0xC00)
 boot_app0.bin       0xE000         f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0    8,192 B (0x2000)
-firmware.bin        0x10000        8ba5ae9e0f79c55add45411a47a2d3403ee991a0863cda7a2734bc8962d0bef2    998,320 B (0xF3BB0)
-合并单文件固件      0x0 整体刷     34c3c70f532626a831460212b07b4754a67bd71b7a90678b90ca9ab15348618e    1,064,960 B (0x104000)
+firmware.bin        0x10000        9ebfe2316eada8bc7f85807aa1e18bbf3667ad2f888ffaee930a595ddf1a1115    998,304 B (0xF3BA0)
+合并单文件固件      0x0 整体刷     5563fa384817300852f2c08034a55d1883a754eae4843f6a4090e0180ee20b2a    1,064,960 B (0x104000)
 
 - Merged layout: 0x0 bootloader + 0x8000 partitions + 0xE000 boot_app0 + 0x10000
   application (gaps padded with 0xFF)
@@ -157,6 +157,13 @@ ELRS receiver gives no data                  Protocol not set to CRSF           
 8. What's new in V1.1
 ---------------------
 
+- Fixed Configurator permanently disabling the gyro after a save:
+  MSP_SET_SENSOR_ALIGNMENT (220) used to write gyro_dev = NONE from
+  gyro_enable_mask, which is read back from runtime detection. If the gyro was
+  momentarily not detected, saving in Configurator wrote 0 and persisted it to NVS,
+  so every later boot skipped detection. The byte is now consumed but ignored;
+  startup beep, status beeps, LED effects and all other sensor settings are
+  unchanged. set gyro_dev NONE + save still disables it explicitly.
 - Fixed buzzer sounding continuously at power-on: the YaoKun S3 uses an
   active-high buzzer (S8050), so pin_buzzer_invert now ships as 0
   (non-inverted) instead of upstream's 1. The startup beep, all status

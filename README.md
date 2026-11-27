@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛩️ ESP-FC 飞控 · 耀坤整理版
+# 🛩️ ESP-FC耀坤版
 
 **ESP32 高性能飞控 —— 迷你、低成本、高性能，为业余玩家而生**
 
@@ -22,9 +22,9 @@
 
 ---
 
-> 📌 **本仓库是 [rtlopez/esp-fc](https://github.com/rtlopez/esp-fc) 的中文整理版 + 耀坤 S3 硬件适配版。**  
+> 📌 **本仓库是 [rtlopez/esp-fc](https://github.com/rtlopez/esp-fc) 的 ESP-FC耀坤版 + 耀坤 S3 硬件适配版。**  
 > `master` 分支**保持上游原样**（仅调整目录位置，未改一行代码逻辑）。  
-> `yaokun-organized` 分支在整理版基础上**新增了耀坤 S3 板级适配**（详见下方 [耀坤 S3 适配版](#-耀坤-s3-适配版yaokun-organized-分支)）。  
+> `yaokun-organized` 分支在 ESP-FC耀坤版基础上**新增了耀坤 S3 板级适配**（详见下方 [耀坤 S3 适配版](#-耀坤-s3-适配版yaokun-organized-分支)）。  
 > 上游项目与作者：[Ramon Lopez](https://github.com/rtlopez) · MIT 许可
 
 ## 📌 这是什么
@@ -318,6 +318,6 @@ pio device monitor --port COM28
 <div align="center">
 
 **🛩️ ESP-FC** · 由 [Ramon Lopez](https://github.com/rtlopez) 倾力打造 · MIT License  
-· 本中文整理版由 [耀坤智联](https://github.com/YaoKunS) 维护
+· ESP-FC耀坤版由 [耀坤智联](https://github.com/YaoKunS) 维护
 
 </div>
