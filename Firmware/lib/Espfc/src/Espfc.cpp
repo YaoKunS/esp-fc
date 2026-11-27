@@ -3,8 +3,41 @@
 #include "Hal/FastCode.hpp"
 #include "Hal/Platform.hpp"
 #include "Hal/Time.hpp"
+#include "Identity.h"          // 开机 IDENTITY 横幅（品牌身份，见文件内注释）
+#include "Stream/Printer.hpp"  // 文本输出封装（println 发 CRLF）
 
 namespace Espfc {
+
+/* ---------------------------------------------------------------------------
+ * printIdentity() —— 开机在 MSP 地面站口打印多行 IDENTITY 品牌横幅。
+ *
+ * 【为什么在 SerialManager::begin() 之后调用】
+ *   横幅要打到用户实际插线的 MSP 口（S3=UART0，火龙果=UART0/CH340），
+ *   必须先等串口初始化完成、state.serial[i].stream 指针有效。
+ *
+ * 【为什么取 SERIAL_FUNCTION_MSP 的口而不是 debug 口】
+ *   S3 的 debug 口是 SERIAL_USB（虚拟串口），火龙果是 UART0；
+ *   两板用户看横幅的口不一致。统一取 MSP 口，才能保证 BF 配置器 /
+ *   串口助手连上就能看到第一屏身份串，与自研、flix 的观感一致。
+ *
+ * 【为什么不写进 logger】
+ *   logger 只在 ESPFC_DEBUG_SERIAL 宏打开时才输出到串口，而发布固件
+ *   默认不开该宏 —— 写进 logger 会导致横幅永远不出现。
+ *
+ * 【串口被占用时的行为】
+ *   取不到流指针就静默跳过，绝不影响飞控启动流程（横幅是观感功能，
+ *   不能因为它让飞机不起飞）。
+ * ------------------------------------------------------------------------ */
+static void printIdentity(Stream::ReadWritable* stream)
+{
+  if (!stream) return;
+
+  Stream::Printer printer(*stream);
+  for (const char* const* line = ESPFC_IDENTITY_LINES; *line; ++line)
+  {
+    printer.println(*line);
+  }
+}
 
 Espfc::Espfc()
     : _hardware{_model}, _controller{_model}, _telemetry{_model}, _input{_model, _telemetry}, _actuator{_model},
@@ -25,6 +58,13 @@ int Espfc::begin()
   _model.state.led.begin(_model.config.pin[PIN_LED_BLINK], _model.config.led.type, _model.config.led.invert);
 
   _serial.begin();   // requires _model.load()
+
+  // 开机品牌横幅：取第一路 MSP 口（getSerialIndex 从 index 0 找起，
+  // 两板都是 UART0 = 用户插线的地面站口），与自研/flix 第一屏口径一致。
+#ifndef ESPFC_IDENTITY_DISABLED
+  printIdentity(_model.getSerialStream(SERIAL_FUNCTION_MSP));
+#endif
+
   _hardware.begin(); // requires _model.load()
   _model.begin();    // requires _hardware.begin()
   _mixer.begin();

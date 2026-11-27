@@ -110,7 +110,7 @@
 <div class="wrap">
 
 <div class="cover">
-  <span class="badge">开源飞控 ESP-FC · 耀坤 S3 硬件适配版 v1.0.1（2026-11-26）</span>
+  <span class="badge">开源飞控 ESP-FC · 耀坤 S3 硬件适配版 V1.1（2026-11-27）</span>
   <h1>耀坤S3无人机 · ESP-FC 整理版</h1>
   <div class="sub">MSP 协议全兼容地面站　·　8520 空心杯有刷电机适配　·　Betaflight 配置器直接识别</div>
   <div class="facts">
@@ -499,6 +499,26 @@ DShot 双向回读（<i>bidirectional DShot</i>）能让地面站显示实时转
 
 <h2 id="s7">七、传感器链路</h2>
 
+<h3>7.0 V1.1 默认自动探测与开机身份横幅</h3>
+
+<p><b>出厂默认全部 AUTO</b>（V1.1 起）：<code>gyro_dev</code> / <code>accel_dev</code> /
+<code>gyro_bus</code> / <code>baro_dev</code> / <code>baro_bus</code> /
+<code>mag_dev</code> / <code>mag_bus</code> 都是 <code>AUTO</code>，插上模块即自动探测，
+无需任何 CLI 配置。实测支持：</p>
+<ul>
+<li><b>气压计</b>：BMP280 / BMP085 / SPL06-001 / MS5611（I2C；前三者另支持 SPI）</li>
+<li><b>磁力计</b>：HMC5883L / QMC5883L / QMC5883P / AK8963（I2C / 陀螺仪从总线）</li>
+<li><b>IMU</b>：MPU6050 / MPU6500 / MPU9250 / ICM20602 / ICM42688 / BMI160 / LSM6DSO</li>
+</ul>
+<p>注意：<b>MS5611 与 BMP280 共用 0x76/0x77 地址</b>，探测链把 MS5611 放最后
+（它没有 ID 寄存器，只能靠 PROM 系数猜），同总线同时挂两颗只会认出 BMP280。</p>
+
+<p><b>开机 IDENTITY 横幅</b>（V1.1 新增）：上电第一屏在 MSP 串口打印多行身份串
+（产品名 / 版本 / 编译时间 / 作者 / B 站 / 立创 / 淘宝 / GitHub），与耀坤自研飞控、
+Flix 耀坤整理版口径一致。S3 版<b>不含任何火龙果链接</b>；火龙果版明确署名
+<code>(c) 微辣火龙果（malagis）</code>、2025 星火奖归微辣火龙果项目、
+固件适配署耀坤智联——两品牌相互独立。</p>
+
 <h3>7.1 双通路设计</h3>
 
 <p>ESP-FC 同时支持 SPI 与 I2C 两种 IMU 总线，由 <code>ModelConfig</code> 在启动时探测。
@@ -535,8 +555,10 @@ BF 配置器 3D 模型实测标定：实物抬头 → 3D 抬头、实物右倾 �
 </div>
 
 <p><b>现场试档</b>（不用重新编译）：<code>gyro_align</code> 每个采样周期实时读取，
-CLI <code>set gyro_align CW270</code> 后立即生效，BF 3D 直接可看；确认对了才
-<code>save</code>。<b>⚠️ 任何 <code>save</code> 都会把当时的值固化进 NVS</b>，
+CLI <code>set gyro_align CW270</code>（6050）/ <code>CW90</code>（6500）后立即生效，BF 3D 直接可看；
+<b>🔴 <code>exit</code> 退出 CLI 会触发重启，未 <code>save</code> 的 <code>set</code> 值会丢失</b>——
+试档期间不要退出 CLI，否则重启后回退到自动分档默认（换模块后看到的"姿态又反了"多源于此）。
+确认对了才 <code>save</code>。<b>⚠️ 任何 <code>save</code> 都会把当时的值固化进 NVS</b>，
 显式值（≠DEFAULT）会永久压制自动分档——换 IMU 类型后它会拿旧值去转新模块。
 恢复自动分档：<code>set gyro_align DEFAULT</code> → <code>save</code>。</p>
 
@@ -819,11 +841,11 @@ MS5607/AN520 兼容片 CRC 自动判别（新参数 <code>baro_math</code>）</t
 </div>
 
 <footer>
-<strong>耀坤S3 无人机 · ESP-FC 整理版　技术说明书　v1.0.1</strong><br>
+<strong>耀坤S3 无人机 · ESP-FC 整理版　技术说明书　V1.1</strong><br>
 上游项目：<a href="https://github.com/rtlopez/esp-fc">rtlopez/esp-fc</a>（MIT，© Ramon Lopez）<br>
 整理版：<a href="https://github.com/YaoKunS/esp-fc">github.com/YaoKunS/esp-fc</a>　·
 淘宝店铺 shop35432590.taobao.com<br>
-v1.0：2026-10-18　·　v1.0.1：2026-11-26　·　本手册为新增内容，不替代上游任何版权声明
+v1.0：2026-10-18　·　v1.0.1：2026-11-26　·　V1.1：2026-11-27　·　本手册为新增内容，不替代上游任何版权声明
 </footer>
 
 </div>

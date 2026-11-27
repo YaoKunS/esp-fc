@@ -530,7 +530,37 @@ enum BuzzerEvent {
 
 struct BuzzerConfig
 {
+  /*
+   * 蜂鸣器电平极性：inverted=true 为反相（响=Low），false 为同相（响=High）。
+   *
+   * 【本次修复的唯一目标：出厂默认不再上电常鸣】
+   *   耀坤 S3 / 火龙果 2.0 用的是**高电平触发**有源蜂鸣器（S8050 驱动，
+   *   给 High 就响、给 Low 不响）。依据：flix board.h「高电平触发(S8050)」、
+   *   自研 drone_buzzer.h 的 BUZZER_ACTIVE_HIGH=true。
+   *   上游 ESP-FC 默认 inverted=true，是给"低电平触发"板（PNP 三极管拉低
+   *   鸣叫）用的；沿用它会让 Buzzer::begin() 上电写 High，对高电平触发的
+   *   蜂鸣器就是持续通电、一上电就叫个不停。
+   *   改成同相(0)后 begin() 上电写 Low —— 只是把**静止电平**摆正为"不响"，
+   *   需要响时仍由各蜂鸣事件写 High，开机提示音与各状态音效照常播放。
+   *
+   * 【为什么用板级宏而不是全局改默认值】
+   *   本仓库还含 esp32 / esp32s3 / esp32s2 / esp32c3 / esp8266 / rp2040
+   *   等上游原版板型，蜂鸣器极性未必与耀坤板一致；若把这里的 true 直接
+   *   改成 false，会连带改坏其它板。故只让两块耀坤板在各自 Target 头
+   *   定义 ESPFC_BUZZER_INVERTED=0，未定义该宏的板型保持上游原值 true。
+   *
+   * 🔴【音效 / 灯效一律不碰】
+   *   beeperMask 保持上游原样（无初始化器），开机音(BUZZER_SYSTEM_INIT)、
+   *   陀螺仪校准音、RX 丢失/恢复、低电压、解锁/上锁等全部状态音效，
+   *   以及所有 LED 灯效，均由上游原逻辑和用户 NVS 配置决定，本次修复
+   *   不做任何改动。等价于把用户手动 `set pin_buzzer_invert 0` 的效果
+   *   固化进出厂默认值；除此之外与旧固件行为完全一致。
+   */
+#ifdef ESPFC_BUZZER_INVERTED
+  int8_t inverted = ESPFC_BUZZER_INVERTED;
+#else
   int8_t inverted = true;
+#endif
   int32_t beeperMask;
 };
 
@@ -800,7 +830,12 @@ struct AccelConfig
 struct BaroConfig
 {
   int8_t bus = Hal::BUS_AUTO;
-  int8_t dev = BARO_NONE;
+  // 🔴 出厂默认 = BARO_DEFAULT(0) = 自动探测（2026-11-27 v1.0.2 改）。
+  //    上游默认是 BARO_NONE(1)，探测链入口直接早退 —— 全新板子（NVS 空白）
+  //    默认不认气压计，必须 BF 配置器连接写一次参数才能开启，不符合"开箱即用"。
+  //    改为 BARO_DEFAULT 后 detectBaro() 正常执行，SPL06-001 / BMP280 / BMP085 /
+  //    MS5611 挂上 I2C/SPI 排母即自动识别。用户仍可 CLI `set baro_dev NONE` 显式关闭。
+  int8_t dev = BARO_DEFAULT;
   // 压力补偿模式（仅 MS5611 驱动使用）：
   //   -1 = 自动判别（CRC 通过→MS5611 datasheet 公式；不过→AN520/MS5607 公式）
   //    0 = 强制 MS5611 datasheet 公式；1 = 强制 AN520/MS5607 公式（系数差 2 倍）
@@ -812,7 +847,10 @@ struct BaroConfig
 struct MagConfig
 {
   int8_t bus = Hal::BUS_AUTO;
-  int8_t dev = MAG_NONE;
+  // 🔴 出厂默认 = MAG_DEFAULT(0) = 自动探测（2026-11-27 v1.0.2 改，理由同 BaroConfig）。
+  //    QMC5883L / HMC5883L / AK8963 / QMC5883P 挂上 I2C 即自动识别，
+  //    无需地面站先行配置。用户仍可 CLI `set mag_dev NONE` 显式关闭。
+  int8_t dev = MAG_DEFAULT;
   int8_t align = ALIGN_DEFAULT;
   int16_t offset[3] = { 0, 0, 0 };
   int16_t scale[3] = { 1000, 1000, 1000 };

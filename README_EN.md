@@ -76,6 +76,24 @@ If you own a YaoKun board, **this section is all you need**.
 | **Y4** | Build flag `-DESPFC_DEV_PRESET_BRUSHED`                    | Force PWM output — the 8520 coreless motors are **brushed**            |
 | **Y5** | `Device/Baro/BaroMS5611.hpp/.cpp` + detection chain (v1.0.1) | New **MS5611 barometer driver** (auto-detects MS5607/AN520 clones, new `baro_math` param) |
 | **Y6** | `TargetESP32s3YaoKun.h` + `Hardware.cpp` (v1.0.1)          | **Gyro CS default changed to 42 (PCB V2)**; IMU orientation auto-selected per bus (I2C 6050 → CW270 / SPI 6500 → CW90, calibrated against the BF Configurator 3D model) |
+| **Y7** | `TargetESP32HLG20.h` + `esp32_hlg20` env + board-aware packaging (v1.0.1) | **New MildlySpicyDragon 2.0 board adaptation** (classic ESP32, pins aligned with the `BOARD_HLG_V2` conventions of flix/YaoKunDrone); PCB hardware (c) MildlySpicyDragon (malagis), YaoKunSmart provides firmware adaptation only — see [Docs/火龙果2.0适配说明.md](Docs/火龙果2.0适配说明.md) |
+
+### V1.1 changes (2026-11-27)
+
+- 🆕 **Boot IDENTITY banner**: a multi-line identity block prints on the first screen
+  (product / version / build time / author / Bilibili / OSHWHub / Taobao / GitHub), matching
+  YaoKunDrone and the Flix organized edition. The S3 banner carries **no** MildlySpicyDragon
+  links; the HLG banner credits hardware to `(c) MildlySpicyDragon (malagis)`, explicitly
+  assigns the 2025 Spark Program award to the MildlySpicyDragon project, and credits firmware
+  adaptation to YaoKunSmart — the two brands stay independent.
+- 🆕 **All sensors default to AUTO**: `gyro_dev` / `accel_dev` / `gyro_bus` / `baro_dev` /
+  `baro_bus` / `mag_dev` / `mag_bus` all ship as `AUTO` — plug in a module and it is detected
+  with no CLI setup. Supports BMP280 / SPL06-001 / MS5611 barometers, HMC5883L / QMC5883L
+  mags, and MPU6050 / MPU6500 / MPU9250 IMUs.
+- 🔧 **Version unified at V1.1**: both boards' release packages, docs and CLI `version`
+  agree; packages were re-sanitised (build-machine paths / account names removed).
+- 🧭 **Final IMU alignment**: both boards use CW270 (I2C 6050) / CW90 (SPI 6500), calibrated
+  against the BF Configurator 3D model.
 
 > ✅ The v1.0 promise stands: attitude estimation (AHRS), filters, PID,
 > mixing, the MSP stack and ground-station compatibility are all kept from upstream.
@@ -162,16 +180,22 @@ waste a DMA channel and a UART peripheral.
 
 ### Picking the right build environment (Flash / PSRAM)
 
-| Item                | `esp32s3_yaokun` (LCSC R8N8) ★ | `esp32s3_yaokun_n4r2` (Supermini) |
-|---------------------|-------------------------------|----------------------------------|
-| Flash               | 8 MB                          | 4 MB                              |
-| PSRAM               | 8 MB **OPI (octal)**          | 2 MB **QIO (quad)**              |
-| Partition table     | `default_8MB.csv`             | `partitions_4M_nota.csv`         |
-| `memory_type`       | `qio_opi`                     | `qio`                            |
+| Item                | `esp32s3_yaokun` (LCSC R8N8) ★ | `esp32s3_yaokun_n4r2` (Supermini) | `esp32_hlg20` (MildlySpicyDragon 2.0) |
+|---------------------|-------------------------------|----------------------------------|---------------------------------------|
+| Chip / board        | ESP32-S3 R8N8                 | ESP32-S3 Supermini               | **classic ESP32 (DevKit V1)**          |
+| Flash               | 8 MB                          | 4 MB                              | 4 MB                                   |
+| PSRAM               | 8 MB **OPI (octal)**          | 2 MB **QIO (quad)**              | none (WROOM-32)                        |
+| Partition table     | `default_8MB.csv`             | `partitions_4M_nota.csv`         | `partitions_4M_nota.csv`               |
+| `memory_type`       | `qio_opi`                     | `qio`                             | — (no PSRAM)                           |
 
 > 🔴 **Wrong choice → immediate panic with no serial output at all, and the ground station cannot
 > see the board**: flashing N4R2 with R8N8 parameters overruns the 4 MB app partition and fails OPI
-> init. Read the module silkscreen: `R8N8` = 8+8, `N4R2` = 4+2.
+> init. Read the module silkscreen: `R8N8` = 8+8, `N4R2` = 4+2.  
+> 🔴 **The MildlySpicyDragon 2.0 is a classic ESP32 and must be flashed with `esp32_hlg20`** —
+> the two S3 envs are not interchangeable with it. See
+> [Docs/火龙果2.0适配说明.md](Docs/火龙果2.0适配说明.md) for the pin map and adaptation notes.
+> HLG 2.0 PCB hardware (c) MildlySpicyDragon (malagis); YaoKunSmart provides the firmware
+> adaptation only.
 
 ### Building
 
@@ -183,6 +207,7 @@ cd Firmware
 
 pio run -e esp32s3_yaokun          # ★ build for R8N8 (common case)
 pio run -e esp32s3_yaokun_n4r2     # build for N4R2
+pio run -e esp32_hlg20             # build for MildlySpicyDragon 2.0 (classic ESP32)
 pio test -e native                 # run unit tests
 ```
 

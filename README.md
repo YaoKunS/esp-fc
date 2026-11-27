@@ -72,10 +72,25 @@ ESP-FC 是一款运行在 **ESP32** 上的开源飞控固件，定位是**迷你
 | **Y4** | 编译宏 `-DESPFC_DEV_PRESET_BRUSHED`                          | 输出协议强制 PWM —— 8520 空心杯是**有刷**电机                    |
 | **Y5** | `Device/Baro/BaroMS5611.hpp/.cpp` + 探测链接线（v1.0.1）         | 新增 **MS5611 气压计驱动**（含 MS5607/AN520 兼容片自动判别，新参数 `baro_math`） |
 | **Y6** | `TargetESP32s3YaoKun.h` + `Hardware.cpp`（v1.0.1）          | **陀螺仪 CS 默认改 42（PCB V2）**；IMU 安装朝向按总线自动分档（I2C 6050→CW270 / SPI 6500→CW90，BF 配置器实测标定） |
+| **Y7** | `TargetESP32HLG20.h` + `esp32_hlg20` env + 打包脚本板型化（v1.0.1） | **新增微辣火龙果 2.0 板级适配**（ESP32 经典片，引脚对齐 flix/自研的 BOARD_HLG_V2 口径）；PCB 硬件 (c) 微辣火龙果（malagis），耀坤仅做固件适配，详见 [Docs/火龙果2.0适配说明.md](Docs/火龙果2.0适配说明.md) |
 
 > ✅ v1.0 时算法层 0 行改动的口径不变：姿态解算（AHRS）、滤波、PID、混控、MSP 协议栈
 > 仍全部保留上游实现；v1.0.1 的 Y5/Y6 属于**设备驱动与板级默认值**，不动算法。
 > 上游的 `[env:esp32s3]` 也**一行未改**，可随时切换对比。
+
+### V1.1 更新记录（2026-11-27）
+
+- 🆕 **开机 IDENTITY 品牌横幅**：上电第一屏打印多行身份串（产品名 / 版本 / 编译时间 /
+  作者 / B 站 / 立创 / 淘宝 / GitHub），与耀坤自研飞控、Flix 耀坤整理版口径一致。
+  S3 版**不含任何火龙果链接**；火龙果版明确署名 `(c) 微辣火龙果（malagis）`、
+  2025 星火奖归微辣火龙果项目、固件适配署耀坤智联——两品牌独立。
+- 🆕 **出厂默认传感器全部 AUTO**：`gyro_dev` / `accel_dev` / `gyro_bus` /
+  `baro_dev` / `baro_bus` / `mag_dev` / `mag_bus` 均为 `AUTO`，插上模块即自动探测，
+  无需 CLI 配置。支持 BMP280 / SPL06-001 / MS5611 气压计、HMC5883L / QMC5883L
+  磁力计、MPU6050 / MPU6500 / MPU9250 等 IMU。
+- 🔧 **固件版本统一 V1.1**：两板（S3 / 火龙果）发布件、文档与 CLI `version`
+  口径一致；发布件重新脱敏打包（本机路径 / 账号名归零）。
+- 🧭 **IMU 朝向分档终版**：两板统一 I2C 6050 → CW270 / SPI 6500 → CW90（BF 3D 实测标定）。
 
 ### v1.0.1 更新记录（2026-11-26）
 
@@ -171,16 +186,20 @@ DShot 双向回读转速只对智能电调有意义，对 PWM 电调只会白占
 
 ### 选对编译环境（Flash / PSRAM）
 
-| 项             | `esp32s3_yaokun`（立创 R8N8）★ | `esp32s3_yaokun_n4r2`（Supermini） |
-| ------------- | -------------------------- | -------------------------------- |
-| Flash         | 8 MB                       | 4 MB                             |
-| PSRAM         | 8 MB **OPI（八线）**           | 2 MB **QIO（四线）**                 |
-| 分区表           | `default_8MB.csv`          | `partitions_4M_nota.csv`         |
-| `memory_type` | `qio_opi`                  | `qio`                            |
+| 项             | `esp32s3_yaokun`（立创 R8N8）★ | `esp32s3_yaokun_n4r2`（Supermini） | `esp32_hlg20`（火龙果 2.0） |
+| ------------- | -------------------------- | -------------------------------- | -------------------------- |
+| 芯片 / 板      | ESP32-S3 R8N8              | ESP32-S3 Supermini               | **ESP32 经典片（DevKit V1）**  |
+| Flash         | 8 MB                       | 4 MB                             | 4 MB                       |
+| PSRAM         | 8 MB **OPI（八线）**           | 2 MB **QIO（四线）**                 | 无（WROOM-32）               |
+| 分区表           | `default_8MB.csv`          | `partitions_4M_nota.csv`         | `partitions_4M_nota.csv`   |
+| `memory_type` | `qio_opi`                  | `qio`                            | —（无 PSRAM）                |
 
 > 🔴 **选错直接 panic，且没有任何串口输出、地面站完全搜不到板子**：  
 > N4R2 刷了 R8N8 参数 → app 超出 4MB 分区边界 + OPI 初始化失败。  
-> 看模组丝印即可判断：`R8N8` = 8+8，`N4R2` = 4+2。
+> 看模组丝印即可判断：`R8N8` = 8+8，`N4R2` = 4+2。  
+> 🔴 **火龙果 2.0 是经典 ESP32，必须烧 `esp32_hlg20`**，与 S3 两个 env 不可互刷；
+> 引脚与适配细节见 [Docs/火龙果2.0适配说明.md](Docs/火龙果2.0适配说明.md)。
+> 火龙果 2.0 PCB 硬件 (c) 微辣火龙果（malagis / MildlySpicyDragon），耀坤智联仅做固件适配。
 
 ### 编译
 
@@ -192,6 +211,7 @@ cd Firmware
 
 pio run -e esp32s3_yaokun          # ★ 编译 R8N8（常用）
 pio run -e esp32s3_yaokun_n4r2     # 编译 N4R2
+pio run -e esp32_hlg20             # 编译火龙果 2.0（经典 ESP32）
 pio test -e native                 # 跑单元测试
 ```
 

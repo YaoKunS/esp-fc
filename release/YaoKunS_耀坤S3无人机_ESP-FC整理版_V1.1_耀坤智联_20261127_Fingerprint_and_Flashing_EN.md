@@ -35,13 +35,13 @@ adaptation for the YaoKun S3 hardware.
 
 | Item | Value |
 | --- | --- |
-| Firmware version | **v1.0.1** (YaoKun Organized Edition) |
+| Firmware version | **V1.1** (YaoKun Organized Edition) |
 | Brand | YaoKunSmart / YaoKunS |
 | Build environment | `pio run -e esp32s3_yaokun` |
-| Build time | Nov 26 2026 17:49:32 |
+| Build time | Nov 27 2026 17:35:27 |
 | Toolchain | PlatformIO Core (espressif32 + arduino) |
 | Key build flags | `-DESPFC_TARGET_YAOKUN` `-DESPFC_DEV_PRESET_BRUSHED` |
-| Application size | 997,632 B (0xF3900) |
+| Application size | 998,320 B (0xF3BB0) |
 
 > 🔴 **Neither macro may be removed**:
 > `-DESPFC_TARGET_YAOKUN` selects the YaoKun pin map (otherwise upstream's 39/40/41/42 are
@@ -54,11 +54,11 @@ adaptation for the YaoKun S3 hardware.
 ### Option A — single file (simplest)
 
 ```bash
-esptool --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 "YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0.1_耀坤智联_20261126_merged.bin"
+esptool --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 "YaoKunS_耀坤S3无人机_ESP-FC整理版_V1.1_耀坤智联_20261127_merged.bin"
 ```
 
 For a GUI use the [ESP Tool Website](https://espressif.github.io/esptool-js/):
-connect → add `YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0.1_耀坤智联_20261126_merged.bin` → Flash Address `0x0` → Program.
+connect → add `YaoKunS_耀坤S3无人机_ESP-FC整理版_V1.1_耀坤智联_20261127_merged.bin` → Flash Address `0x0` → Program.
 
 ⚠️ If you tick **DoNotChgBin**: the SPI mode/frequency/size are already encoded in the image
 header; rewriting them breaks the checksum.
@@ -82,19 +82,21 @@ esptool --chip esp32s3 --port COMx --baud 921600 write_flash \\
 **① Compare the hash** (most reliable, no power needed):
 
 ```cmd
-certutil -hashfile "YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0.1_耀坤智联_20261126_merged.bin" SHA256
+certutil -hashfile "YaoKunS_耀坤S3无人机_ESP-FC整理版_V1.1_耀坤智联_20261127_merged.bin" SHA256
 ```
 
 ```bash
-sha256sum "YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0.1_耀坤智联_20261126_merged.bin"
+sha256sum "YaoKunS_耀坤S3无人机_ESP-FC整理版_V1.1_耀坤智联_20261127_merged.bin"
 ```
 
-→ must equal **03897c1947c3a4e410f2d6a523601620f85f1499fc2f8eec77686089bf5e14f4**
+→ must equal **34c3c70f532626a831460212b07b4754a67bd71b7a90678b90ca9ab15348618e**
 
 **② Serial confirmation**
 
 Attach **UART0 (GPIO43/44, 115200 8N1)** or the **native USB CDC** port and open it at
-115200 baud. You should see the ESP-FC CLI banner, then type `status` and `dump` in the CLI —
+115200 baud. The first screen should show a multi-line **IDENTITY banner** (product / version
+V1.1 / build time / author / Bilibili / OSHWHub / Taobao / GitHub), matching YaoKunDrone and
+Flix organized editions; then type `version` to confirm, and `status` / `dump` in the CLI —
 save the `dump` output as your baseline.
 
 **③ Search plaintext inside the bin** (no device needed):
@@ -117,8 +119,8 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 | `bootloader.bin` | `0x0` | `1776e4dd896a69d0a5c2e79957b0e2a88aa4129b1381d6478683515a1f6af343` | 15,104 B (0x3B00) |
 | `partitions.bin` | `0x8000` | `1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c` | 3,072 B (0xC00) |
 | `boot_app0.bin` | `0xE000` | `f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0` | 8,192 B (0x2000) |
-| `firmware.bin` | `0x10000` | `420c1b26834e6b15323f6d063fc5afe84568f8176b2149804c89b2bd8377b901` | 997,632 B (0xF3900) |
-| **合并单文件固件** | `0x0` 整体刷 | `03897c1947c3a4e410f2d6a523601620f85f1499fc2f8eec77686089bf5e14f4` | 1,064,960 B (0x104000) |
+| `firmware.bin` | `0x10000` | `8ba5ae9e0f79c55add45411a47a2d3403ee991a0863cda7a2734bc8962d0bef2` | 998,320 B (0xF3BB0) |
+| **合并单文件固件** | `0x0` 整体刷 | `34c3c70f532626a831460212b07b4754a67bd71b7a90678b90ca9ab15348618e` | 1,064,960 B (0x104000) |
 
 - Merged layout: `0x0` bootloader `+ 0x8000` partitions `+ 0xE000` boot_app0 `+ 0x10000`
   application (gaps padded with 0xFF)
@@ -152,17 +154,31 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 | Barometer not found | Loose wiring or SDA/SCL swapped (pulls the whole I2C bus down) | Check VCC/GND/SDA(9)/SCL(8) one by one; re-seat to recover |
 | ELRS receiver gives no data | Protocol not set to CRSF | Set the UART2 protocol in the configurator |
 
-## 8. What's new in v1.0.1
+## 8. What's new in V1.1
 
+- **Fixed buzzer sounding continuously at power-on**: the YaoKun S3 uses an
+  active-high buzzer (S8050), so `pin_buzzer_invert` now ships as `0`
+  (non-inverted) instead of upstream's `1`. **The startup beep, all status
+  beeps and all LED effects are unchanged** — `beeperMask` and every sound /
+  light setting remain exactly as upstream.
+- **All sensors default to AUTO**: `gyro_dev` / `accel_dev` / `gyro_bus` /
+  `baro_dev` / `baro_bus` / `mag_dev` / `mag_bus` all ship as `AUTO` — plug in a
+  module and it is detected automatically, no CLI setup required. Supports
+  BMP280 / SPL06-001 / MS5611 barometers, HMC5883L / QMC5883L / AK8963 mags,
+  and MPU6050 / MPU6500 / MPU9250 IMUs.
+- **Boot IDENTITY banner**: a multi-line identity block prints on first screen
+  (product / version / build time / author / Bilibili / OSHWHub / Taobao / GitHub),
+  matching YaoKunDrone and Flix organized editions; the S3 banner carries no
+  MildlySpicyDragon links — the two brands stay independent.
+- **Automatic IMU orientation (final)**: while `gyro_align` is DEFAULT, the
+  alignment is auto-selected per bus — CW270 (I2C 6050) / CW90 (SPI 6500) —
+  calibrated against the Betaflight Configurator 3D model (nose up renders nose up,
+  right roll renders right roll); explicit settings always win, restore auto mode
+  with `set gyro_align DEFAULT`.
 - **MS5611 barometer driver**: enable with CLI `set baro_dev MS5611`; `baro_math -1`
   (default) auto-detects the MS5611 vs MS5607(AN520) clone compensation formula via CRC.
 - **Gyro CS default changed to 42 (PCB V2)**: V1 boards switch back with
   CLI `set pin_spi_cs_0 17`.
-- **Automatic IMU orientation**: while `gyro_align` is DEFAULT, the alignment is
-  auto-selected per bus — CW270 (I2C 6050) / CW90 (SPI 6500) — calibrated against
-  the Betaflight Configurator 3D model (nose up renders nose up, right roll renders
-  right roll); explicit settings always win, restore auto mode with
-  `set gyro_align DEFAULT`.
 - **Release sanitisation**: build-machine paths / account names removed from the
   firmware image (app checksum recomputed).
 

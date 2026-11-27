@@ -1,0 +1,193 @@
+# 微辣火龙果 2.0 / ESP-FC 耀坤适配版 —— 固件指纹与烧录说明
+
+## 一、这份固件是什么
+
+基于开源飞控 **ESP-FC**（原作者 Ramon Lopez）的**耀坤整理版**，
+为**微辣火龙果 2.0 飞控**做的板级适配。
+
+- **上游项目**：<https://github.com/rtlopez/esp-fc>（MIT，`(c) Ramon Lopez`）
+- **适配版仓库**：<https://github.com/YaoKunS/esp-fc>（分支 `yaokun-organized`）
+- **硬件对应**：微辣火龙果 2.0 飞控（ESP32 DevKit V1 经典片，4MB Flash，无 PSRAM（WROOM-32 模组））
+- **硬件设计**：**(c) 微辣火龙果（malagis / MildlySpicyDragon）**
+  —— 开源页：<https://oshwhub.com/malagis/esp32-mini-plane>；
+  B 站：<https://space.bilibili.com/544479100>
+- **固件适配**：耀坤智联（YaoKunSmart）
+- **电机**：4 × **8520 空心杯有刷电机**，GPIO **27 / 33 / 26 / 32**
+  （右后 RR / 右前 FR / 左后 RL / 左前 FL，对应丝印 M2 / M1 / M3 / M4），**PWM 输出**
+- **传感器**：MPU6500（SPI，SCK18 / MOSI23 / MISO19，**CS=GPIO5**）
+  或 MPU6050（I2C，SDA=21 / SCL=22，排母）
+- **气压计**：内置 **MS5611 驱动**（I2C 0x76/0x77，兼容 MS5607/AN520 系芯片自动判别；
+  CLI `set baro_dev MS5611` 启用，`baro_math -1` 自动选补偿公式）
+- **IMU 朝向**：与耀坤 S3 同一系列板框、安装方向一致，按总线自动分档
+  （BF 配置器实测标定）：I2C 6050 → CW270，SPI 6500 → CW90；`gyro_align` 显式设置优先
+- **遥控**：SBUS（GPIO4）；本板无空闲串口，无 ELRS 通道
+- **地面站**：Betaflight / Cleanflight Configurator（MSP 协议 v2）
+- **其它**：蜂鸣器 GPIO25（有源）、板载单色 LED GPIO2、
+  电池电压采样 GPIO35（100K+100K 1:2 分压，**ADC1**，Wi-Fi 开启时可正常读）
+
+> ★ 本固件是**纯姿态自稳 + 手动油门**：没有 GPS、测距等位置传感器（可选配 MS5611
+> 气压计，仅作高度显示与调试，**不做定高控制**）。
+>
+> - **松杆不会悬停** —— 姿态会稳平，但保持水平速度继续飘
+> - **松油门就掉高度**
+> - 首次试飞请在**空旷场地、低空、装保护圈**的前提下进行
+
+## 二、版本与来源
+
+| 项目 | 内容 |
+| --- | --- |
+| 固件版本 | **V1.1**（耀坤整理版 · 火龙果 2.0 适配） |
+| 品牌 | 硬件 © 微辣火龙果（malagis / MildlySpicyDragon）· 固件适配 耀坤智联 |
+| 编译环境 | `pio run -e esp32_hlg20` |
+| 编译时间 | 2026-11-27 19:14:48 |
+| 工具链 | PlatformIO Core（espressif32 + arduino） |
+| 关键编译宏 | `-DESPFC_TARGET_HLG20` `-DESPFC_DEV_PRESET_BRUSHED` |
+| 应用程序大小 | 1,038,960 B (0xFDA70) |
+
+> 🔴 **两个宏都不能删**：
+> `-DESPFC_TARGET_HLG20` 决定用火龙果引脚（否则用上游经典 ESP32 模板的
+> 电机 27/25/4/12 —— 其中 **25 是蜂鸣器**、串口还会抢走 33/32 电机脚，电机不转、蜂鸣器常鸣）；
+> `-DESPFC_DEV_PRESET_BRUSHED` 把输出从 DShot 换成 PWM
+> （8520 空心杯是**有刷**电机，有刷电调只认 PWM，否则四电机全停）。
+
+## 三、怎么烧
+
+### 方式 A：单文件（★ 全新板 / 不在乎标定数据，最简单）
+
+```bash
+esptool --chip esp32 --port COMx --baud 460800 write_flash 0x0 "MildlySpicyDragon_火龙果2.0_ESP-FC耀坤适配版_V1.1_20261127_merged.bin"
+```
+
+图形界面用 [ESP Tool Website](https://espressif.github.io/esptool-js/)：
+连上设备 → 添加 `MildlySpicyDragon_火龙果2.0_ESP-FC耀坤适配版_V1.1_20261127_merged.bin` → Flash Address 填 `0x0` → Program。
+
+⚠️ 若勾选了 **DoNotChgBin**：镜像头里的 SPI 模式/频率/容量已写好，改写会破坏校验。
+
+### 方式 B：分片（★ 已标定过的机器请用这个）
+
+**单文件从 `0x0` 整片刷写会把 `0x9000~0xE000` 的 nvs 区清成 0xFF**，
+也就是：PID、调参、加速度计标定值全部丢失。
+
+```bash
+esptool --chip esp32 --port COMx --baud 460800 write_flash \\
+  0x1000   "bootloader.bin" \\
+  0x8000   "partitions.bin" \\
+  0x10000  "firmware.bin"
+```
+
+（`boot_app0.bin` 一般不必重刷。）
+
+> 🔴 **别把两个地址弄混**：单文件 `merged.bin` 整片从 `0x0` 刷写即可，
+> 因为镜像内部已把 bootloader 摆在 `0x1000`；只有**单独烧 bootloader.bin**
+> 时才用 `0x1000`（经典 ESP32 规则，S3 才是 `0x0`）。
+
+> 🔴 **换板型刷机必做**：如果这块板以前刷过其它板型的 ESP-FC 固件，NVS 里
+> 残留的引脚值（如 S3 的 CS=42）会**覆盖**本板默认值。刷完先在 CLI 执行
+> `defaults` → `save` → `reboot`，确保跑的是火龙果引脚。
+
+## 四、怎么验证烧进去的是这一版（指纹探测）
+
+**① 比文件哈希**（最可靠，不用上电）：
+
+```cmd
+certutil -hashfile "MildlySpicyDragon_火龙果2.0_ESP-FC耀坤适配版_V1.1_20261127_merged.bin" SHA256
+```
+
+```bash
+sha256sum "MildlySpicyDragon_火龙果2.0_ESP-FC耀坤适配版_V1.1_20261127_merged.bin"
+```
+
+→ 应为 **983c0b8f4e85fd940b26ffc3caf21271e2bbfd61465874d3e442fb491a179bc5**
+
+**② 串口确认**
+
+接 **UART0（板载 CH340 USB 口，GPIO1/3，115200 8N1）**，115200 波特率打开。
+上电后第一屏应看到多行 **IDENTITY 品牌横幅**：`(c) 微辣火龙果（malagis）`
+硬件署名、2025 星火奖明确归微辣火龙果项目、固件适配署耀坤智联、版本 V1.1；
+与耀坤自研飞控、Flix 耀坤整理版口径一致。接着在 CLI 里敲 `version` 确认版本、
+`status` 与 `dump` —— `dump` 的输出存成文件即为你的基线。
+
+**③ 在 bin 里搜明文**（不用设备也能确认）：
+
+- 搜 `esp-fc` → 命中（产品名串）
+- 搜 `MSP` 与 `Betaflight` 相关字符串确认协议栈已编入
+
+**④ 读 flash 里的镜像头**（只读，不改动任何东西）：
+
+```bash
+esptool --chip esp32 --port COMx read_flash 0x10000 0x200 app_hdr.bin
+```
+
+→ 首字节应为 `E9`（ESP 镜像魔数）。
+
+## 五、产物与校验（SHA-256）
+
+| 产物 | 烧写地址 | SHA-256 | 大小 |
+| --- | --- | --- | --- |
+| `bootloader.bin` | `0x1000` | `7da2252586bc50961e0692b4aeef79d6569fa257466246c860965101e4165476` | 18,976 B (0x4A20) |
+| `partitions.bin` | `0x8000` | `9d237d2449dfaaae40077a90f7f9f5731112bff6a30e6c7824be80d5fb039953` | 3,072 B (0xC00) |
+| `boot_app0.bin` | `0xE000` | `f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0` | 8,192 B (0x2000) |
+| `firmware.bin` | `0x10000` | `7321f606e5688ce46b644a0c4a9637ccf730f945c6d7436f5216205fd6e7c52a` | 1,038,960 B (0xFDA70) |
+| **合并单文件固件** | `0x0` 整体刷 | `983c0b8f4e85fd940b26ffc3caf21271e2bbfd61465874d3e442fb491a179bc5` | 1,105,920 B (0x10E000) |
+
+- 合并布局：`0x1000` bootloader（经典 ESP32；`0x0`~`0x1000` 留 0xFF） `+ 0x8000` 分区表 `+ 0xE000` boot_app0 `+ 0x10000` 应用程序（段间填 0xFF）
+- Flash 容量：**4MB**（如需二次确认：`esptool image-info <bin>`）
+- 应用程序镜像头：`E9 05 02 20` → SPI 模式 **DIO**、段数 **5**、入口 **0x40088954**
+- bootloader 镜像头：`E9 03 02 20` → SPI 模式 **DIO**
+
+## 六、刷完必做的五件事
+
+1. **清 NVS 残留**（换板型刷机时）：CLI `defaults` → `save` → `reboot`
+2. **重跑加速度计校准**（若整片刷写清空了 NVS）：逐面静止 ≥2 秒，采满六面
+3. **不装桨测电机**：推油门应对角两颗同转（混控序号 ≠ 丝印 M1~M4，见故障速查）
+4. **用万用表核对电压读数**：地面站显示应与实测一致（验证 `ESPFC_ADC_SCALE = 2.0f/4096`）
+5. **插桨后开陷波**：有刷电机噪音大，CLI 敲 `set gyro_notch_count 3`
+
+## 七、故障速查
+
+| 现象 | 根因 | 处理 |
+| --- | --- | --- |
+| 地面站搜不到板子 | env 选错（应烧 `esp32_hlg20`） | 换 env 重烧 |
+| 上电无串口输出 | CH340 驱动没装 / UART0 接线松 | 装 CP210x/CH340 驱动，查 GPIO1/3 |
+| 烧录失败 / 反复重启 | GPIO12 被拉高（光流模块 MIS 上拉） | 拔掉光流模块；长期用烧 eFuse 固定 3.3V 或加 10k 下拉 |
+| **四个电机都不转** | 漏 `-DESPFC_DEV_PRESET_BRUSHED` | 加上重新编译 |
+| **蜂鸣器常鸣** | 烧的是上游 `esp32` 固件（其电机表把 PWM 打到 GPIO25 蜂鸣器） | 改烧 `esp32_hlg20` |
+| 推油门不是对角两颗同转 | 混控序号 ≠ 丝印 M1~M4（差一个交叉） | 按 `OUTPUT_0=27(RR) 1=33(FR) 2=26(RL) 3=32(FL)` 核对 |
+| 实物抬头 3D 低头（pitch/roll 双反相） | 模块 180° 反插（排母/SPI 座允许双向插装） | 做对位标记；或 CLI `set gyro_align CW270`（6050）现场试档，注意 `exit` 会重启丢未保存值 |
+| 换 IMU 后姿态错 90°/180° | NVS 固化了旧 `gyro_align` 值 | CLI `set gyro_align DEFAULT` → `save` 恢复自动分档 |
+| 显示电压为零 / 只有一半 | `ESPFC_ADC_SCALE` 填错，或 ADC 被改到 ADC2 组的脚 | 保持 GPIO35（ADC1）；分压系数固定 `2.0f/4096` |
+| 姿态不动 / 传感器失联 | IMU 片选 / 接线错 | SPI 6500 CS=5；I2C 6050 SDA=21 / SCL=22 |
+| 气压计读不到 | 模块接线松/SDA-SCL 对调拉死总线 | 逐根检查 VCC/GND/SDA(21)/SCL(22)，重插即恢复 |
+
+## 八、本版（V1.1）火龙果适配要点
+
+- **修复蜂鸣器上电常鸣**：本板 GPIO25 蜂鸣器高电平触发，出厂默认
+  `pin_buzzer_invert=0`（同相），上电不再持续鸣叫；**开机提示音、各状态
+  音效与全部 LED 灯效保持原样**，`beeperMask` 及音效/灯效配置未改。
+- **硬件归属**：PCB 硬件设计 (c) 微辣火龙果（malagis / MildlySpicyDragon），
+  2025 星火计划获奖项目属于微辣火龙果项目；耀坤智联只做 ESP-FC 固件适配
+  与维护，两品牌相互独立。开机 IDENTITY 横幅按此口径署名。
+- **出厂默认传感器全部 AUTO**：插上 MPU6050 / MPU6500 / MPU9250 IMU、
+  HMC5883L / QMC5883L 磁力计、BMP280 / SPL06-001 / MS5611 气压计即自动
+  探测，无需 CLI 配置。
+- **板级适配**：`TargetESP32HLG20.h`（引脚对齐 flix / 自研的 BOARD_HLG_V2
+  口径，两者逐脚一致）与编译环境 `esp32_hlg20`。
+- **IMU 朝向沿用自动分档**：与耀坤 S3 同一系列板框，I2C 6050 → CW270、
+  SPI 6500 → CW90 原样生效，无需 CLI 配置。
+- **MS5611 气压计驱动**可用（I2C 排母）；`baro_math -1` 自动判别兼容芯片。
+- **光流（PMW3901）不在本版支持范围**：ESP-FC 0.3.0 无光流设备驱动，
+  GPIO12/13/14/15 仅登记未启用。
+- **发布件脱敏**：编译机路径/账号名已从固件镜像清除（app 校验已重算）。
+
+## 九、找到我们
+
+- 硬件与原项目：B 站 [微辣火龙果](https://space.bilibili.com/544479100) ·
+  OSHWHub [malagis](https://oshwhub.com/malagis/esp32-mini-plane)
+- 固件适配：B 站 [耀坤智联](https://space.bilibili.com/3707011699050767) ·
+  GitHub <https://github.com/YaoKunS> ·
+  淘宝店 [耀坤智联](https://shop35432590.taobao.com/)
+
+---
+
+本说明由 `Firmware/tools/pack_release.py` 自动生成；哈希、分段布局、镜像头与编译时间均现场
+从固件镜像提取，与 bin 严格一致。发布物中**不含任何本机路径**。

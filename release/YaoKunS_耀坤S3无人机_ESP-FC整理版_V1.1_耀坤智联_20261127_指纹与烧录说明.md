@@ -30,13 +30,13 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 固件版本 | **v1.0.1**（耀坤整理版） |
+| 固件版本 | **V1.1**（耀坤整理版） |
 | 品牌 | 耀坤智联 / YaoKunS / YaoKunSmart |
 | 编译环境 | `pio run -e esp32s3_yaokun` |
-| 编译时间 | 2026-11-26 17:49:32 |
+| 编译时间 | 2026-11-27 17:35:27 |
 | 工具链 | PlatformIO Core（espressif32 + arduino） |
 | 关键编译宏 | `-DESPFC_TARGET_YAOKUN` `-DESPFC_DEV_PRESET_BRUSHED` |
-| 应用程序大小 | 997,632 B (0xF3900) |
+| 应用程序大小 | 998,320 B (0xF3BB0) |
 
 > 🔴 **两个宏都不能删**：
 > `-DESPFC_TARGET_YAOKUN` 决定用耀坤引脚（否则用上游 39/40/41/42，电机不转、蜂鸣器常鸣）；
@@ -48,11 +48,11 @@
 ### 方式 A：单文件（最简单）
 
 ```bash
-esptool --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 "YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0.1_耀坤智联_20261126_merged.bin"
+esptool --chip esp32s3 --port COMx --baud 921600 write_flash 0x0 "YaoKunS_耀坤S3无人机_ESP-FC整理版_V1.1_耀坤智联_20261127_merged.bin"
 ```
 
 图形界面用 [ESP Tool Website](https://espressif.github.io/esptool-js/)：
-连上设备 → 添加 `YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0.1_耀坤智联_20261126_merged.bin` → Flash Address 填 `0x0` → Program。
+连上设备 → 添加 `YaoKunS_耀坤S3无人机_ESP-FC整理版_V1.1_耀坤智联_20261127_merged.bin` → Flash Address 填 `0x0` → Program。
 
 ⚠️ 若勾选了 **DoNotChgBin**：镜像头里的 SPI 模式/频率/容量已写好，改写会破坏校验。
 
@@ -75,20 +75,21 @@ esptool --chip esp32s3 --port COMx --baud 921600 write_flash \\
 **① 比文件哈希**（最可靠，不用上电）：
 
 ```cmd
-certutil -hashfile "YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0.1_耀坤智联_20261126_merged.bin" SHA256
+certutil -hashfile "YaoKunS_耀坤S3无人机_ESP-FC整理版_V1.1_耀坤智联_20261127_merged.bin" SHA256
 ```
 
 ```bash
-sha256sum "YaoKunS_耀坤S3无人机_ESP-FC整理版_v1.0.1_耀坤智联_20261126_merged.bin"
+sha256sum "YaoKunS_耀坤S3无人机_ESP-FC整理版_V1.1_耀坤智联_20261127_merged.bin"
 ```
 
-→ 应为 **03897c1947c3a4e410f2d6a523601620f85f1499fc2f8eec77686089bf5e14f4**
+→ 应为 **34c3c70f532626a831460212b07b4754a67bd71b7a90678b90ca9ab15348618e**
 
 **② 串口确认**
 
 接 **UART0（GPIO43/44，115200 8N1）** 或 **原生 USB CDC**，115200 波特率打开。
-上电后应看到 ESP-FC 的 CLI 提示符与版本横幅，
-接着在 CLI 里敲 `status` 与 `dump` —— `dump` 的输出存成文件即为你的基线。
+上电后第一屏应看到多行 **IDENTITY 品牌横幅**（产品名 / 版本 V1.1 / 编译时间 /
+作者 / B 站 / 立创 / 淘宝 / GitHub），与耀坤自研飞控、Flix 耀坤整理版口径一致；
+接着在 CLI 里敲 `version` 确认版本、`status` 与 `dump` —— `dump` 的输出存成文件即为你的基线。
 
 **③ 在 bin 里搜明文**（不用设备也能确认）：
 
@@ -111,8 +112,8 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 | `bootloader.bin` | `0x0` | `1776e4dd896a69d0a5c2e79957b0e2a88aa4129b1381d6478683515a1f6af343` | 15,104 B (0x3B00) |
 | `partitions.bin` | `0x8000` | `1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c` | 3,072 B (0xC00) |
 | `boot_app0.bin` | `0xE000` | `f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0` | 8,192 B (0x2000) |
-| `firmware.bin` | `0x10000` | `420c1b26834e6b15323f6d063fc5afe84568f8176b2149804c89b2bd8377b901` | 997,632 B (0xF3900) |
-| **合并单文件固件** | `0x0` 整体刷 | `03897c1947c3a4e410f2d6a523601620f85f1499fc2f8eec77686089bf5e14f4` | 1,064,960 B (0x104000) |
+| `firmware.bin` | `0x10000` | `8ba5ae9e0f79c55add45411a47a2d3403ee991a0863cda7a2734bc8962d0bef2` | 998,320 B (0xF3BB0) |
+| **合并单文件固件** | `0x0` 整体刷 | `34c3c70f532626a831460212b07b4754a67bd71b7a90678b90ca9ab15348618e` | 1,064,960 B (0x104000) |
 
 - 合并布局：`0x0` bootloader `+ 0x8000` 分区表 `+ 0xE000` boot_app0 `+ 0x10000` 应用程序（段间填 0xFF）
 - Flash 容量：**8MB**（如需二次确认：`esptool image-info <bin>`）
@@ -142,15 +143,26 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 | **蜂鸣器常鸣** | 烧的是上游 `esp32s3` 固件 | 改烧 `esp32s3_yaokun` |
 | ELRS 接收机无数据 | 协议没设成 CRSF | 地面站改 UART2 协议 |
 
-## 八、v1.0.1 主要改动
+## 八、V1.1 主要改动
 
-- **MS5611 气压计驱动**：CLI `set baro_dev MS5611` 启用；`baro_math -1`（默认）
-  按 CRC 自动判别 MS5611 / MS5607(AN520) 系兼容芯片的补偿公式。
-- **陀螺仪 CS 默认 42（PCB V2）**：V1 老板 CLI `set pin_spi_cs_0 17` 切回。
-- **IMU 朝向自动分档**：`gyro_align=DEFAULT` 时按总线自动选
+- **修复蜂鸣器上电常鸣**：耀坤 S3 用高电平触发有源蜂鸣器（S8050），
+  出厂默认 `pin_buzzer_invert` 由上游的反相 `1` 改为同相 `0`，上电不再持续
+  鸣叫；需要响时仍由事件驱动鸣叫。**开机提示音、各状态音效与全部 LED
+  灯效保持原样**，`beeperMask` 及所有音效/灯效配置未做任何改动。
+- **出厂默认传感器全部 AUTO**：`gyro_dev` / `accel_dev` / `gyro_bus` /
+  `baro_dev` / `baro_bus` / `mag_dev` / `mag_bus` 均为 `AUTO`，插上模块即自动
+  探测，无需任何 CLI 配置。支持 BMP280 / SPL06-001 / MS5611 气压计、
+  HMC5883L / QMC5883L / AK8963 磁力计、MPU6050 / MPU6500 / MPU9250 等 IMU。
+- **开机 IDENTITY 品牌横幅**：上电第一屏打印多行身份串（产品名 / 版本 /
+  编译时间 / 作者 / B 站 / 立创 / 淘宝 / GitHub），与耀坤自研飞控、Flix
+  耀坤整理版口径一致；S3 版不含火龙果链接，两品牌独立。
+- **IMU 朝向自动分档（终版）**：`gyro_align=DEFAULT` 时按总线自动选
   CW270（I2C 6050）/ CW90（SPI 6500），BF 配置器 3D 模型实测标定
   （实物抬头 3D 抬头、实物右倾 3D 右倾）；显式设置过的值优先，
   换 IMU 类型后用 `set gyro_align DEFAULT` 恢复自动。
+- **MS5611 气压计驱动**：CLI `set baro_dev MS5611` 启用；`baro_math -1`（默认）
+  按 CRC 自动判别 MS5611 / MS5607(AN520) 系兼容芯片的补偿公式。
+- **陀螺仪 CS 默认 42（PCB V2）**：V1 老板 CLI `set pin_spi_cs_0 17` 切回。
 - **发布件脱敏**：编译机路径/账号名已从固件镜像清除（app 校验已重算）。
 
 ## 九、找到我们

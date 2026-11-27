@@ -54,7 +54,12 @@
 #endif
 
 #ifndef ESPFC_VERSION
-#define ESPFC_VERSION v0.3.0-dev
+// 🔴 固件版本号唯一数据源（2026-11-27 V1.1 统一发布）：
+//   改这里一处，CLI `version`、MSP_FC_VERSION 的 targetVersion、
+//   开机 IDENTITY 横幅（Identity.h 用 STR(ESPFC_VERSION)）全部联动。
+//   必须是【不带引号的裸 token】——STR(ESPFC_VERSION) 才能字符串化。
+//   V1.1 起：默认传感器全 AUTO 自动探测 + 开机品牌横幅 + 双板统一分档。
+#define ESPFC_VERSION v1.1
 #endif
 
 #define MAX_SUPPORTED_MOTORS 8

@@ -23,6 +23,20 @@ pack_release.py —— ESP-FC 耀坤整理版 固件打包 + 中英文指纹说�
    → 上电直接不启动 / 反复重启。
    bootloader 本来就是 DIO，所以合并时也必须写 dio。
 
+🔴 合并单文件的另一个致命细节：bootloader 偏移按芯片而不同
+----------------------------------------------------------
+   经典 ESP32（火龙果 2.0 / WROOM-32）的 ROM 固定从 flash 0x1000 读
+   bootloader；ESP32-S3（耀坤 S3）从 0x0 读。合并整片镜像时，
+   bootloader 在镜像里的偏移必须与之一致，0x0~0x1000 之间留 0xFF：
+     - hlg20：0x0=FF、0x1000=E9(bootloader)、0x8000=AA(分区表)、0x10000=E9(app)
+     - s3   ：0x0=E9(bootloader)、0x8000=AA、0x10000=E9
+   单文件整片镜像的**烧录**地址一律是 0x0（镜像内部偏移已摆好），
+   这与「单独烧 bootloader.bin 时用 0x1000」是两件事，不要混淆。
+   2026-11-27 修复：早先把两板 bootloader 都摆到 0x0，导致火龙果
+   merged.bin 烧到 0x0 后物理 0x1000 处无 0xE9 镜像头、芯片不启动。
+   依据：PlatformIO 自动生成的 firmware_0x00.bin 与耀坤自研飞控火龙果版
+   已验证可启动的 merged.bin 均为上述布局。
+
 用法
 ----
    python Firmware/tools/pack_release.py                 # 默认打包 R8N8 版
@@ -58,9 +72,20 @@ BOOT_APP0_HINTS = [
     os.path.expanduser("~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0_16mb.bin"),
 ]
 
-# 各段的烧写地址（合并布局，与 ESP32 标准一致）
+# 各段在合并单文件镜像里的偏移（ESP32 标准布局）
+#
+# 🔴 bootloader 偏移不是全局固定值（2026-11-27 修复单文件发布件布局）：
+#    - ESP32-S3（耀坤 S3）：ROM 从 flash 0x0 读 bootloader → 镜像里摆 0x0
+#    - 经典 ESP32（火龙果 2.0 / WROOM-32）：ROM 固定从 flash 0x1000 读
+#      → 镜像里必须摆 0x1000，0x0~0x1000 留 0xFF 填充
+#    若把经典片的 bootloader 也摆到 0x0，整片镜像烧到 0x0 后物理 0x1000
+#    处不是 0xE9 镜像头，芯片上电直接不启动（串口 0 字节）。
+#    依据：PlatformIO 自动生成的 firmware_0x00.bin（hlg20: 0x0=FF/0x1000=E9；
+#    s3: 0x0=E9）、以及耀坤自研飞控火龙果版已验证可启动的 merged.bin 同布局。
+#    下面 ("bootloader", 0x0) 只是 S3 默认值；build_context() 会按
+#    BOARDS[board]["boot_addr"] 覆盖，新增板型只需在注册表里填 boot_addr。
 SEGMENTS = [
-    ("bootloader", 0x0),
+    ("bootloader", 0x0),      # 默认 S3；经典 ESP32 由 build_context 覆盖成 0x1000
     ("partitions", 0x8000),
     ("boot_app0", 0xE000),
     ("firmware", 0x10000),
@@ -75,6 +100,35 @@ ENCRYPT_KEY = b"\xff" * 16
 #    （本机路径 + 本机账号名，严禁出现在发布物里，2026-11-26 实扫 16 处）。
 #    字符串是 NUL 结尾的，整串匹配到 NUL 为止后做等长占位替换。
 LOCAL_PATH_RE = re.compile(rb'C:/Users/[^/\x00]+/\.platformio/[^\x00]+')
+
+# ── 板型注册表（2026-11-27 火龙果适配新增）─────────────────────────────────
+# 每个板型自带：Flash 容量、PSRAM 文案（中/英）、发布件命名模板、说明模板名。
+# 🔴 命名口径沿 flix 仓库惯例：火龙果板发布件用 MildlySpicyDragon 前缀
+#    （英文品牌名是作者的用户名，禁止意译），且不带"耀坤智联"字段——
+#    品牌铁律：硬件署名 malagis，耀坤只在文档内署"固件适配"，两板品牌互不串。
+# 🔴 base 里用 {ver}/{date} 占位，main() 里再填，保持与 --ver 参数联动。
+# 🔴 boot_addr（2026-11-27 新增）：bootloader 在合并单文件镜像里的偏移。
+#    S3 = 0x0；火龙果（经典 ESP32）= 0x1000。详见 SEGMENTS 处的说明与踩坑记录。
+BOARDS = {
+    "s3": {
+        "boot_addr": 0x0,      # ESP32-S3：ROM 从 0x0 读 bootloader
+        "flash_mb": 8,
+        "psram_cn": "8MB OPI 八线 PSRAM",
+        "psram_en": "8 MB OPI (octal)",
+        "base": "YaoKunS_耀坤S3无人机_ESP-FC整理版_{ver}_耀坤智联_{date}",
+        "tmpl_cn": "CN_TMPL",   # 既有 S3 模板，一字未改
+        "tmpl_en": "EN_TMPL",
+    },
+    "hlg20": {
+        "boot_addr": 0x1000,   # 经典 ESP32：ROM 固定从 0x1000 读 bootloader
+        "flash_mb": 4,
+        "psram_cn": "无 PSRAM（WROOM-32 模组）",
+        "psram_en": "none (WROOM-32 module)",
+        "base": "MildlySpicyDragon_火龙果2.0_ESP-FC耀坤适配版_{ver}_{date}",
+        "tmpl_cn": "HLG_CN_TMPL",
+        "tmpl_en": "HLG_EN_TMPL",
+    },
+}
 
 
 def log(msg):
@@ -232,10 +286,11 @@ def sanitize_segment(path, tag):
     return changed
 
 
-def build_context(env, version):
+def build_context(env, version, board):
     """
     收集打包需要的全部信息：产物路径、大小、哈希、镜像头、编译时间。
 
+    board：BOARDS 注册表里本板型的条目（容量 / psram 文案按板型给，不再从 env 名猜）。
     返回一个 dict，模板直接用它填表。
     """
     bdir = os.path.join(BUILD_DIR, env)
@@ -243,8 +298,16 @@ def build_context(env, version):
         sys.exit(f"[pack][错误] 找不到构建目录：{bdir}\n"
                  f"        请先执行：pio run -e {env}")
 
+    # 🔴 bootloader 偏移按板型覆盖（2026-11-27 修复，详见 SEGMENTS / BOARDS 注释）：
+    #    经典 ESP32 必须把 bootloader 摆到镜像 0x1000，0x0~0x1000 保留 0xFF；
+    #    S3 才是 0x0。merge_bin() 的缓冲区整体初始化为 0xFF，因此只要改地址，
+    #    空隙填充自动正确，无需额外处理。ctx["segments"] 记录的地址会同步变化，
+    #    说明文档里的「产物 / 烧写地址」表格也随之自动生成，不用手改模板。
+    boot_addr = board["boot_addr"]
     parts = []
     for name, addr in SEGMENTS:
+        if name == "bootloader":
+            addr = boot_addr
         if name == "boot_app0":
             p = find_boot_app0()
             if p is None:
@@ -278,7 +341,12 @@ def build_context(env, version):
 
     app = ctx["segments"][-1]
     ctx["app_size"] = app["size"]
-    ctx["flash_size_mb"] = 8 if "n4r2" not in env else 4
+    # 🔴 Flash 容量 / PSRAM 文案按板型给（2026-11-27 火龙果适配新增 hlg20 板型）：
+    #    S3 R8N8 = 8MB + OPI PSRAM；N4R2 = 4MB + QIO PSRAM；火龙果（WROOM）= 4MB 无 PSRAM。
+    #    不再从 env 名字符串猜，避免新板型漏配。
+    ctx["flash_size_mb"] = board["flash_mb"]
+    ctx["psram_cn"] = board["psram_cn"]
+    ctx["psram_en"] = board["psram_en"]
     return ctx
 
 
@@ -373,8 +441,9 @@ sha256sum "{merged}"
 **② 串口确认**
 
 接 **UART0（GPIO43/44，115200 8N1）** 或 **原生 USB CDC**，115200 波特率打开。
-上电后应看到 ESP-FC 的 CLI 提示符与版本横幅，
-接着在 CLI 里敲 `status` 与 `dump` —— `dump` 的输出存成文件即为你的基线。
+上电后第一屏应看到多行 **IDENTITY 品牌横幅**（产品名 / 版本 V1.1 / 编译时间 /
+作者 / B 站 / 立创 / 淘宝 / GitHub），与耀坤自研飞控、Flix 耀坤整理版口径一致；
+接着在 CLI 里敲 `version` 确认版本、`status` 与 `dump` —— `dump` 的输出存成文件即为你的基线。
 
 **③ 在 bin 里搜明文**（不用设备也能确认）：
 
@@ -423,15 +492,26 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 | **蜂鸣器常鸣** | 烧的是上游 `esp32s3` 固件 | 改烧 `esp32s3_yaokun` |
 | ELRS 接收机无数据 | 协议没设成 CRSF | 地面站改 UART2 协议 |
 
-## 八、v1.0.1 主要改动
+## 八、V1.1 主要改动
 
-- **MS5611 气压计驱动**：CLI `set baro_dev MS5611` 启用；`baro_math -1`（默认）
-  按 CRC 自动判别 MS5611 / MS5607(AN520) 系兼容芯片的补偿公式。
-- **陀螺仪 CS 默认 42（PCB V2）**：V1 老板 CLI `set pin_spi_cs_0 17` 切回。
-- **IMU 朝向自动分档**：`gyro_align=DEFAULT` 时按总线自动选
+- **修复蜂鸣器上电常鸣**：耀坤 S3 用高电平触发有源蜂鸣器（S8050），
+  出厂默认 `pin_buzzer_invert` 由上游的反相 `1` 改为同相 `0`，上电不再持续
+  鸣叫；需要响时仍由事件驱动鸣叫。**开机提示音、各状态音效与全部 LED
+  灯效保持原样**，`beeperMask` 及所有音效/灯效配置未做任何改动。
+- **出厂默认传感器全部 AUTO**：`gyro_dev` / `accel_dev` / `gyro_bus` /
+  `baro_dev` / `baro_bus` / `mag_dev` / `mag_bus` 均为 `AUTO`，插上模块即自动
+  探测，无需任何 CLI 配置。支持 BMP280 / SPL06-001 / MS5611 气压计、
+  HMC5883L / QMC5883L / AK8963 磁力计、MPU6050 / MPU6500 / MPU9250 等 IMU。
+- **开机 IDENTITY 品牌横幅**：上电第一屏打印多行身份串（产品名 / 版本 /
+  编译时间 / 作者 / B 站 / 立创 / 淘宝 / GitHub），与耀坤自研飞控、Flix
+  耀坤整理版口径一致；S3 版不含火龙果链接，两品牌独立。
+- **IMU 朝向自动分档（终版）**：`gyro_align=DEFAULT` 时按总线自动选
   CW270（I2C 6050）/ CW90（SPI 6500），BF 配置器 3D 模型实测标定
   （实物抬头 3D 抬头、实物右倾 3D 右倾）；显式设置过的值优先，
   换 IMU 类型后用 `set gyro_align DEFAULT` 恢复自动。
+- **MS5611 气压计驱动**：CLI `set baro_dev MS5611` 启用；`baro_math -1`（默认）
+  按 CRC 自动判别 MS5611 / MS5607(AN520) 系兼容芯片的补偿公式。
+- **陀螺仪 CS 默认 42（PCB V2）**：V1 老板 CLI `set pin_spi_cs_0 17` 切回。
 - **发布件脱敏**：编译机路径/账号名已从固件镜像清除（app 校验已重算）。
 
 ## 九、找到我们
@@ -542,7 +622,9 @@ sha256sum "{merged}"
 **② Serial confirmation**
 
 Attach **UART0 (GPIO43/44, 115200 8N1)** or the **native USB CDC** port and open it at
-115200 baud. You should see the ESP-FC CLI banner, then type `status` and `dump` in the CLI —
+115200 baud. The first screen should show a multi-line **IDENTITY banner** (product / version
+V1.1 / build time / author / Bilibili / OSHWHub / Taobao / GitHub), matching YaoKunDrone and
+Flix organized editions; then type `version` to confirm, and `status` / `dump` in the CLI —
 save the `dump` output as your baseline.
 
 **③ Search plaintext inside the bin** (no device needed):
@@ -595,17 +677,31 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 | Barometer not found | Loose wiring or SDA/SCL swapped (pulls the whole I2C bus down) | Check VCC/GND/SDA(9)/SCL(8) one by one; re-seat to recover |
 | ELRS receiver gives no data | Protocol not set to CRSF | Set the UART2 protocol in the configurator |
 
-## 8. What's new in v1.0.1
+## 8. What's new in V1.1
 
+- **Fixed buzzer sounding continuously at power-on**: the YaoKun S3 uses an
+  active-high buzzer (S8050), so `pin_buzzer_invert` now ships as `0`
+  (non-inverted) instead of upstream's `1`. **The startup beep, all status
+  beeps and all LED effects are unchanged** — `beeperMask` and every sound /
+  light setting remain exactly as upstream.
+- **All sensors default to AUTO**: `gyro_dev` / `accel_dev` / `gyro_bus` /
+  `baro_dev` / `baro_bus` / `mag_dev` / `mag_bus` all ship as `AUTO` — plug in a
+  module and it is detected automatically, no CLI setup required. Supports
+  BMP280 / SPL06-001 / MS5611 barometers, HMC5883L / QMC5883L / AK8963 mags,
+  and MPU6050 / MPU6500 / MPU9250 IMUs.
+- **Boot IDENTITY banner**: a multi-line identity block prints on first screen
+  (product / version / build time / author / Bilibili / OSHWHub / Taobao / GitHub),
+  matching YaoKunDrone and Flix organized editions; the S3 banner carries no
+  MildlySpicyDragon links — the two brands stay independent.
+- **Automatic IMU orientation (final)**: while `gyro_align` is DEFAULT, the
+  alignment is auto-selected per bus — CW270 (I2C 6050) / CW90 (SPI 6500) —
+  calibrated against the Betaflight Configurator 3D model (nose up renders nose up,
+  right roll renders right roll); explicit settings always win, restore auto mode
+  with `set gyro_align DEFAULT`.
 - **MS5611 barometer driver**: enable with CLI `set baro_dev MS5611`; `baro_math -1`
   (default) auto-detects the MS5611 vs MS5607(AN520) clone compensation formula via CRC.
 - **Gyro CS default changed to 42 (PCB V2)**: V1 boards switch back with
   CLI `set pin_spi_cs_0 17`.
-- **Automatic IMU orientation**: while `gyro_align` is DEFAULT, the alignment is
-  auto-selected per bus — CW270 (I2C 6050) / CW90 (SPI 6500) — calibrated against
-  the Betaflight Configurator 3D model (nose up renders nose up, right roll renders
-  right roll); explicit settings always win, restore auto mode with
-  `set gyro_align DEFAULT`.
 - **Release sanitisation**: build-machine paths / account names removed from the
   firmware image (app checksum recomputed).
 
@@ -614,6 +710,411 @@ esptool --chip esp32s3 --port COMx read_flash 0x10000 0x200 app_hdr.bin
 - Bilibili: [YaoKunSmart](https://space.bilibili.com/3707011699050767)
 - GitHub: <https://github.com/YaoKunS>
 - Taobao: [YaoKunSmart](https://shop35432590.taobao.com/)
+
+---
+
+Auto-generated by `Firmware/tools/pack_release.py`; hashes, segment layout, image headers and
+build time are extracted live from the firmware image and match the bins exactly.
+The published artifacts contain **no local machine paths**.
+"""
+
+# ── 火龙果 2.0 指纹说明模板（中/英，2026-11-27 新增）────────────────────────
+# 🔴 为什么不复用 S3 模板：两块板芯片（S3 / 经典 ESP32）、引脚、串口、告警路径
+#    全不一样，硬塞占位符会把 S3 已验证的发布说明搅乱。独立模板，互不影响。
+# 🔴 品牌铁律：硬件 (c) 微辣火龙果（malagis / MildlySpicyDragon，用户名禁意译）；
+#    耀坤智联只署"固件适配"，两板品牌互不串。
+HLG_CN_TMPL = """# 微辣火龙果 2.0 / ESP-FC 耀坤适配版 —— 固件指纹与烧录说明
+
+## 一、这份固件是什么
+
+基于开源飞控 **ESP-FC**（原作者 Ramon Lopez）的**耀坤整理版**，
+为**微辣火龙果 2.0 飞控**做的板级适配。
+
+- **上游项目**：<https://github.com/rtlopez/esp-fc>（MIT，`(c) Ramon Lopez`）
+- **适配版仓库**：<https://github.com/YaoKunS/esp-fc>（分支 `yaokun-organized`）
+- **硬件对应**：微辣火龙果 2.0 飞控（ESP32 DevKit V1 经典片，{flash}MB Flash，{psram}）
+- **硬件设计**：**(c) 微辣火龙果（malagis / MildlySpicyDragon）**
+  —— 开源页：<https://oshwhub.com/malagis/esp32-mini-plane>；
+  B 站：<https://space.bilibili.com/544479100>
+- **固件适配**：耀坤智联（YaoKunSmart）
+- **电机**：4 × **8520 空心杯有刷电机**，GPIO **27 / 33 / 26 / 32**
+  （右后 RR / 右前 FR / 左后 RL / 左前 FL，对应丝印 M2 / M1 / M3 / M4），**PWM 输出**
+- **传感器**：MPU6500（SPI，SCK18 / MOSI23 / MISO19，**CS=GPIO5**）
+  或 MPU6050（I2C，SDA=21 / SCL=22，排母）
+- **气压计**：内置 **MS5611 驱动**（I2C 0x76/0x77，兼容 MS5607/AN520 系芯片自动判别；
+  CLI `set baro_dev MS5611` 启用，`baro_math -1` 自动选补偿公式）
+- **IMU 朝向**：与耀坤 S3 同一系列板框、安装方向一致，按总线自动分档
+  （BF 配置器实测标定）：I2C 6050 → CW270，SPI 6500 → CW90；`gyro_align` 显式设置优先
+- **遥控**：SBUS（GPIO4）；本板无空闲串口，无 ELRS 通道
+- **地面站**：Betaflight / Cleanflight Configurator（MSP 协议 v2）
+- **其它**：蜂鸣器 GPIO25（有源）、板载单色 LED GPIO2、
+  电池电压采样 GPIO35（100K+100K 1:2 分压，**ADC1**，Wi-Fi 开启时可正常读）
+
+> ★ 本固件是**纯姿态自稳 + 手动油门**：没有 GPS、测距等位置传感器（可选配 MS5611
+> 气压计，仅作高度显示与调试，**不做定高控制**）。
+>
+> - **松杆不会悬停** —— 姿态会稳平，但保持水平速度继续飘
+> - **松油门就掉高度**
+> - 首次试飞请在**空旷场地、低空、装保护圈**的前提下进行
+
+## 二、版本与来源
+
+| 项目 | 内容 |
+| --- | --- |
+| 固件版本 | **{version}**（耀坤整理版 · 火龙果 2.0 适配） |
+| 品牌 | 硬件 © 微辣火龙果（malagis / MildlySpicyDragon）· 固件适配 耀坤智联 |
+| 编译环境 | `pio run -e {env}` |
+| 编译时间 | {built} |
+| 工具链 | PlatformIO Core（espressif32 + arduino） |
+| 关键编译宏 | `-DESPFC_TARGET_HLG20` `-DESPFC_DEV_PRESET_BRUSHED` |
+| 应用程序大小 | {appsize} |
+
+> 🔴 **两个宏都不能删**：
+> `-DESPFC_TARGET_HLG20` 决定用火龙果引脚（否则用上游经典 ESP32 模板的
+> 电机 27/25/4/12 —— 其中 **25 是蜂鸣器**、串口还会抢走 33/32 电机脚，电机不转、蜂鸣器常鸣）；
+> `-DESPFC_DEV_PRESET_BRUSHED` 把输出从 DShot 换成 PWM
+> （8520 空心杯是**有刷**电机，有刷电调只认 PWM，否则四电机全停）。
+
+## 三、怎么烧
+
+### 方式 A：单文件（★ 全新板 / 不在乎标定数据，最简单）
+
+```bash
+esptool --chip esp32 --port COMx --baud 460800 write_flash 0x0 "{merged}"
+```
+
+图形界面用 [ESP Tool Website](https://espressif.github.io/esptool-js/)：
+连上设备 → 添加 `{merged}` → Flash Address 填 `0x0` → Program。
+
+⚠️ 若勾选了 **DoNotChgBin**：镜像头里的 SPI 模式/频率/容量已写好，改写会破坏校验。
+
+### 方式 B：分片（★ 已标定过的机器请用这个）
+
+**单文件从 `0x0` 整片刷写会把 `0x9000~0xE000` 的 nvs 区清成 0xFF**，
+也就是：PID、调参、加速度计标定值全部丢失。
+
+```bash
+esptool --chip esp32 --port COMx --baud 460800 write_flash \\\\
+  0x1000   "bootloader.bin" \\\\
+  0x8000   "partitions.bin" \\\\
+  0x10000  "firmware.bin"
+```
+
+（`boot_app0.bin` 一般不必重刷。）
+
+> 🔴 **别把两个地址弄混**：单文件 `merged.bin` 整片从 `0x0` 刷写即可，
+> 因为镜像内部已把 bootloader 摆在 `0x1000`；只有**单独烧 bootloader.bin**
+> 时才用 `0x1000`（经典 ESP32 规则，S3 才是 `0x0`）。
+
+> 🔴 **换板型刷机必做**：如果这块板以前刷过其它板型的 ESP-FC 固件，NVS 里
+> 残留的引脚值（如 S3 的 CS=42）会**覆盖**本板默认值。刷完先在 CLI 执行
+> `defaults` → `save` → `reboot`，确保跑的是火龙果引脚。
+
+## 四、怎么验证烧进去的是这一版（指纹探测）
+
+**① 比文件哈希**（最可靠，不用上电）：
+
+```cmd
+certutil -hashfile "{merged}" SHA256
+```
+
+```bash
+sha256sum "{merged}"
+```
+
+→ 应为 **{msha}**
+
+**② 串口确认**
+
+接 **UART0（板载 CH340 USB 口，GPIO1/3，115200 8N1）**，115200 波特率打开。
+上电后第一屏应看到多行 **IDENTITY 品牌横幅**：`(c) 微辣火龙果（malagis）`
+硬件署名、2025 星火奖明确归微辣火龙果项目、固件适配署耀坤智联、版本 V1.1；
+与耀坤自研飞控、Flix 耀坤整理版口径一致。接着在 CLI 里敲 `version` 确认版本、
+`status` 与 `dump` —— `dump` 的输出存成文件即为你的基线。
+
+**③ 在 bin 里搜明文**（不用设备也能确认）：
+
+- 搜 `esp-fc` → 命中（产品名串）
+- 搜 `MSP` 与 `Betaflight` 相关字符串确认协议栈已编入
+
+**④ 读 flash 里的镜像头**（只读，不改动任何东西）：
+
+```bash
+esptool --chip esp32 --port COMx read_flash 0x10000 0x200 app_hdr.bin
+```
+
+→ 首字节应为 `E9`（ESP 镜像魔数）。
+
+## 五、产物与校验（SHA-256）
+
+| 产物 | 烧写地址 | SHA-256 | 大小 |
+| --- | --- | --- | --- |
+{segrows}
+
+- 合并布局：`0x1000` bootloader（经典 ESP32；`0x0`~`0x1000` 留 0xFF） `+ 0x8000` 分区表 `+ 0xE000` boot_app0 `+ 0x10000` 应用程序（段间填 0xFF）
+- Flash 容量：**{flash}MB**（如需二次确认：`esptool image-info <bin>`）
+{imghdr}
+
+## 六、刷完必做的五件事
+
+1. **清 NVS 残留**（换板型刷机时）：CLI `defaults` → `save` → `reboot`
+2. **重跑加速度计校准**（若整片刷写清空了 NVS）：逐面静止 ≥2 秒，采满六面
+3. **不装桨测电机**：推油门应对角两颗同转（混控序号 ≠ 丝印 M1~M4，见故障速查）
+4. **用万用表核对电压读数**：地面站显示应与实测一致（验证 `ESPFC_ADC_SCALE = 2.0f/4096`）
+5. **插桨后开陷波**：有刷电机噪音大，CLI 敲 `set gyro_notch_count 3`
+
+## 七、故障速查
+
+| 现象 | 根因 | 处理 |
+| --- | --- | --- |
+| 地面站搜不到板子 | env 选错（应烧 `esp32_hlg20`） | 换 env 重烧 |
+| 上电无串口输出 | CH340 驱动没装 / UART0 接线松 | 装 CP210x/CH340 驱动，查 GPIO1/3 |
+| 烧录失败 / 反复重启 | GPIO12 被拉高（光流模块 MIS 上拉） | 拔掉光流模块；长期用烧 eFuse 固定 3.3V 或加 10k 下拉 |
+| **四个电机都不转** | 漏 `-DESPFC_DEV_PRESET_BRUSHED` | 加上重新编译 |
+| **蜂鸣器常鸣** | 烧的是上游 `esp32` 固件（其电机表把 PWM 打到 GPIO25 蜂鸣器） | 改烧 `esp32_hlg20` |
+| 推油门不是对角两颗同转 | 混控序号 ≠ 丝印 M1~M4（差一个交叉） | 按 `OUTPUT_0=27(RR) 1=33(FR) 2=26(RL) 3=32(FL)` 核对 |
+| 实物抬头 3D 低头（pitch/roll 双反相） | 模块 180° 反插（排母/SPI 座允许双向插装） | 做对位标记；或 CLI `set gyro_align CW270`（6050）现场试档，注意 `exit` 会重启丢未保存值 |
+| 换 IMU 后姿态错 90°/180° | NVS 固化了旧 `gyro_align` 值 | CLI `set gyro_align DEFAULT` → `save` 恢复自动分档 |
+| 显示电压为零 / 只有一半 | `ESPFC_ADC_SCALE` 填错，或 ADC 被改到 ADC2 组的脚 | 保持 GPIO35（ADC1）；分压系数固定 `2.0f/4096` |
+| 姿态不动 / 传感器失联 | IMU 片选 / 接线错 | SPI 6500 CS=5；I2C 6050 SDA=21 / SCL=22 |
+| 气压计读不到 | 模块接线松/SDA-SCL 对调拉死总线 | 逐根检查 VCC/GND/SDA(21)/SCL(22)，重插即恢复 |
+
+## 八、本版（V1.1）火龙果适配要点
+
+- **修复蜂鸣器上电常鸣**：本板 GPIO25 蜂鸣器高电平触发，出厂默认
+  `pin_buzzer_invert=0`（同相），上电不再持续鸣叫；**开机提示音、各状态
+  音效与全部 LED 灯效保持原样**，`beeperMask` 及音效/灯效配置未改。
+- **硬件归属**：PCB 硬件设计 (c) 微辣火龙果（malagis / MildlySpicyDragon），
+  2025 星火计划获奖项目属于微辣火龙果项目；耀坤智联只做 ESP-FC 固件适配
+  与维护，两品牌相互独立。开机 IDENTITY 横幅按此口径署名。
+- **出厂默认传感器全部 AUTO**：插上 MPU6050 / MPU6500 / MPU9250 IMU、
+  HMC5883L / QMC5883L 磁力计、BMP280 / SPL06-001 / MS5611 气压计即自动
+  探测，无需 CLI 配置。
+- **板级适配**：`TargetESP32HLG20.h`（引脚对齐 flix / 自研的 BOARD_HLG_V2
+  口径，两者逐脚一致）与编译环境 `esp32_hlg20`。
+- **IMU 朝向沿用自动分档**：与耀坤 S3 同一系列板框，I2C 6050 → CW270、
+  SPI 6500 → CW90 原样生效，无需 CLI 配置。
+- **MS5611 气压计驱动**可用（I2C 排母）；`baro_math -1` 自动判别兼容芯片。
+- **光流（PMW3901）不在本版支持范围**：ESP-FC 0.3.0 无光流设备驱动，
+  GPIO12/13/14/15 仅登记未启用。
+- **发布件脱敏**：编译机路径/账号名已从固件镜像清除（app 校验已重算）。
+
+## 九、找到我们
+
+- 硬件与原项目：B 站 [微辣火龙果](https://space.bilibili.com/544479100) ·
+  OSHWHub [malagis](https://oshwhub.com/malagis/esp32-mini-plane)
+- 固件适配：B 站 [耀坤智联](https://space.bilibili.com/3707011699050767) ·
+  GitHub <https://github.com/YaoKunS> ·
+  淘宝店 [耀坤智联](https://shop35432590.taobao.com/)
+
+---
+
+本说明由 `Firmware/tools/pack_release.py` 自动生成；哈希、分段布局、镜像头与编译时间均现场
+从固件镜像提取，与 bin 严格一致。发布物中**不含任何本机路径**。
+"""
+
+HLG_EN_TMPL = """# MildlySpicyDragon 2.0 / ESP-FC YaoKun Adapted Edition — Firmware Fingerprint & Flashing Guide
+
+## 1. What this firmware is
+
+Built on the open-source flight controller **ESP-FC** (by Ramon Lopez).
+It keeps every line of upstream code and the MIT licence, and adds a board-level
+adaptation for the **MildlySpicyDragon 2.0 flight controller**.
+
+- **Upstream**: <https://github.com/rtlopez/esp-fc> (MIT, (c) Ramon Lopez)
+- **This fork**: <https://github.com/YaoKunS/esp-fc> (branch `yaokun-organized`)
+- **Hardware**: MildlySpicyDragon 2.0 flight controller (ESP32 DevKit V1 classic module,
+  {flash} MB Flash, {psram})
+- **Hardware design**: **(c) MildlySpicyDragon (malagis)** — OSHWHub project page:
+  <https://oshwhub.com/malagis/esp32-mini-plane>; Bilibili:
+  <https://space.bilibili.com/544479100>
+- **Firmware adaptation**: YaoKunSmart (YaoKunS)
+- **Motors**: 4 × **8520 coreless brushed motors**, GPIO **27 / 33 / 26 / 32**
+  (RR / FR / RL / FL, silkscreen M2 / M1 / M3 / M4), **PWM output**
+- **Sensors**: MPU6500 (SPI, SCK18 / MOSI23 / MISO19, **CS=GPIO5**)
+  or MPU6050 (I2C, SDA=21 / SCL=22, socket)
+- **Barometer**: MS5611 driver included (I2C 0x76/0x77, auto-detects MS5607/AN520 clone
+  parts; enable with CLI `set baro_dev MS5611`, `baro_math -1` picks the compensation
+  formula automatically)
+- **IMU orientation**: same PCB family and mounting direction as the YaoKun S3 —
+  auto-selected per bus (calibrated against the Betaflight Configurator 3D model):
+  I2C 6050 → CW270, SPI 6500 → CW90; an explicit `gyro_align` always wins
+- **RC**: SBUS (GPIO4); no spare UART, no ELRS channel on this board
+- **Ground station**: Betaflight / Cleanflight Configurator (MSP v2)
+- **Misc**: buzzer GPIO25 (active), onboard single LED GPIO2,
+  battery sense GPIO35 (100K+100K 1:2 divider, **ADC1** — works while Wi-Fi is on)
+
+> ★ This firmware is **attitude-stabilised + manual throttle only**: no GPS or rangefinder.
+> An optional MS5611 barometer is for altitude display / debugging only —
+> **no altitude control**.
+>
+> - **It does not hover when you release the sticks** — attitude is held but horizontal
+>   velocity carries on
+> - **Letting go of the throttle means losing altitude**
+> - Fly the first time in a **wide open area, low altitude, with prop guards**
+
+## 2. Version and provenance
+
+| Item | Value |
+| --- | --- |
+| Firmware version | **{version}** (YaoKun Organized Edition · HLG 2.0 adaptation) |
+| Brand | Hardware (c) MildlySpicyDragon (malagis) · Firmware adaptation YaoKunSmart |
+| Build environment | `pio run -e {env}` |
+| Build time | {built_en} |
+| Toolchain | PlatformIO Core (espressif32 + arduino) |
+| Key build flags | `-DESPFC_TARGET_HLG20` `-DESPFC_DEV_PRESET_BRUSHED` |
+| Application size | {appsize} |
+
+> 🔴 **Neither macro may be removed**:
+> `-DESPFC_TARGET_HLG20` selects the HLG pin map (otherwise upstream's classic-ESP32 template
+> drives motors on 27/25/4/12 — where **25 is the buzzer** — and a UART steals motor pins
+> 33/32; no motors turn and the buzzer screams); `-DESPFC_DEV_PRESET_BRUSHED` switches the
+> output from DShot to PWM (the 8520 coreless motors are **brushed**, and a brushed ESC only
+> understands PWM — otherwise all four motors stay dead).
+
+## 3. How to flash
+
+### Option A — single file (★ brand-new board / calibration data disposable, simplest)
+
+```bash
+esptool --chip esp32 --port COMx --baud 460800 write_flash 0x0 "{merged}"
+```
+
+For a GUI use the [ESP Tool Website](https://espressif.github.io/esptool-js/):
+connect → add `{merged}` → Flash Address `0x0` → Program.
+
+⚠️ If you tick **DoNotChgBin**: the SPI mode/frequency/size are already encoded in the image
+header; rewriting them breaks the checksum.
+
+### Option B — by segment (★ use this if your board is already calibrated)
+
+A full-chip write from `0x0` erases the NVS region `0x9000~0xE000`, which means your PID
+tuning and accelerometer calibration are gone.
+
+```bash
+esptool --chip esp32 --port COMx --baud 460800 write_flash \\\\
+  0x1000   "bootloader.bin" \\\\
+  0x8000   "partitions.bin" \\\\
+  0x10000  "firmware.bin"
+```
+
+(`boot_app0.bin` normally does not need reflashing.)
+
+> 🔴 **Two different addresses, do not mix them up**: flash the single-file
+> `merged.bin` as one image at `0x0` (the image already places the bootloader
+> at `0x1000` internally). `0x1000` is only for a **standalone bootloader.bin**
+> on a classic ESP32 (S3 uses `0x0`).
+
+> 🔴 **Mandatory when switching board types**: if this board previously ran ESP-FC built for
+> another board, stale NVS pin values (e.g. S3's CS=42) **override** the HLG defaults.
+> After flashing run `defaults` → `save` → `reboot` in the CLI.
+
+## 4. How to verify you flashed this exact build
+
+**① Compare the hash** (most reliable, no power needed):
+
+```cmd
+certutil -hashfile "{merged}" SHA256
+```
+
+```bash
+sha256sum "{merged}"
+```
+
+→ must equal **{msha}**
+
+**② Serial confirmation**
+
+Attach **UART0 (onboard CH340 USB port, GPIO1/3, 115200 8N1)** and open it at 115200 baud.
+The first screen should show a multi-line **IDENTITY banner**: hardware `(c) MildlySpicyDragon
+(malagis)`, the 2025 Spark Program award explicitly credited to the MildlySpicyDragon project,
+firmware adaptation by YaoKunSmart, version V1.1 — matching YaoKunDrone and Flix organized
+editions. Then type `version` to confirm, and `status` / `dump` in the CLI — save the `dump`
+output as your baseline.
+
+**③ Search plaintext inside the bin** (no device needed):
+
+- search `esp-fc` → hit (product name string)
+- search for `MSP` / `Betaflight` related strings to confirm the protocol stack is linked in
+
+**④ Read the image header from flash** (read-only, changes nothing):
+
+```bash
+esptool --chip esp32 --port COMx read_flash 0x10000 0x200 app_hdr.bin
+```
+
+→ the first byte must be `E9` (ESP image magic).
+
+## 5. Artifacts and checksums (SHA-256)
+
+| Artifact | Flash address | SHA-256 | Size |
+| --- | --- | --- | --- |
+{segrows}
+
+- Merged layout: `0x1000` bootloader (classic ESP32; 0x0-0x1000 padded with 0xFF) `+ 0x8000` partitions `+ 0xE000` boot_app0 `+ 0x10000`
+  application (gaps padded with 0xFF)
+- Flash size: **{flash} MB** (double-check with `esptool image-info <bin>`)
+{imghdr}
+
+## 6. Five things to do after flashing
+
+1. **Clear stale NVS** (when switching board types): CLI `defaults` → `save` → `reboot`
+2. **Redo the accelerometer calibration** (if a full-chip write wiped NVS): hold still ≥2 s on
+   each of the six faces
+3. **Motor test without props**: throttle must spin diagonal pairs (mixer index ≠ silkscreen
+   M1~M4, see troubleshooting)
+4. **Check the voltage reading against a multimeter**: the configurator value must match the
+   measured value (this validates `ESPFC_ADC_SCALE = 2.0f/4096`)
+5. **Enable notches once the props are on**: brushed motors are noisy — type
+   `set gyro_notch_count 3` in the CLI
+
+## 7. Troubleshooting
+
+| Symptom | Root cause | Fix |
+| --- | --- | --- |
+| Configurator cannot see the board | Wrong env (must be `esp32_hlg20`) | Rebuild with the matching env |
+| No serial output at all on boot | CH340 driver missing / loose UART0 wiring | Install the CH340 driver, check GPIO1/3 |
+| Flashing fails / boot loops | GPIO12 pulled high (optical-flow module MIS pull-up) | Unplug the flow module; permanently fix with the 3.3V eFuse or a 10k pull-down |
+| **None of the four motors turn** | Missing `-DESPFC_DEV_PRESET_BRUSHED` | Add it and rebuild |
+| **Buzzer runs constantly** | You flashed upstream's `esp32` build (its motor table drives PWM onto GPIO25, the buzzer) | Flash `esp32_hlg20` instead |
+| Throttle does not spin diagonal pairs | Mixer index ≠ silkscreen M1~M4 (crossed by one) | Verify `OUTPUT_0=27(RR) 1=33(FR) 2=26(RL) 3=32(FL)` |
+| Nose up renders nose down (pitch/roll both inverted) | Module inserted 180° flipped (sockets accept both directions) | Mark the reference orientation; or live-test with CLI `set gyro_align CW270` (6050); note that `exit` reboots and drops unsaved values |
+| Attitude off by 90°/180° after swapping IMU | NVS has a stale explicit `gyro_align` value | CLI `set gyro_align DEFAULT` → `save` to restore auto-detect |
+| Voltage reads zero / half the real value | Wrong `ESPFC_ADC_SCALE`, or ADC moved to an ADC2 pin | Keep GPIO35 (ADC1); divider factor fixed at `2.0f/4096` |
+| Attitude frozen / sensor lost | Wrong IMU chip select / wiring | SPI 6500 CS=5; I2C 6050 SDA=21 / SCL=22 |
+| Barometer not found | Loose wiring or SDA/SCL swapped (pulls the whole I2C bus down) | Check VCC/GND/SDA(21)/SCL(22) one by one; re-seat to recover |
+
+## 8. What's new for the HLG 2.0 in V1.1
+
+- **Fixed buzzer sounding continuously at power-on**: the GPIO25 buzzer is
+  active-high, so `pin_buzzer_invert` now ships as `0` (non-inverted). **Startup
+  beep, all status beeps and all LED effects are unchanged**; `beeperMask` and
+  every sound / light setting remain as upstream.
+- **Hardware ownership**: PCB hardware design (c) MildlySpicyDragon (malagis);
+  the 2025 Spark Program award belongs to the MildlySpicyDragon project.
+  YaoKunSmart only maintains the ESP-FC firmware adaptation — the two brands are
+  independent, as reflected in the boot IDENTITY banner.
+- **All sensors default to AUTO**: plug in MPU6050 / MPU6500 / MPU9250 IMUs,
+  HMC5883L / QMC5883L mags, BMP280 / SPL06-001 / MS5611 barometers and they are
+  auto-detected — no CLI configuration needed.
+- **Board-level adaptation**: `TargetESP32HLG20.h` (pins aligned with the
+  `BOARD_HLG_V2` conventions of flix / YaoKunDrone — both match pin-for-pin) and the
+  `esp32_hlg20` build environment.
+- **IMU orientation reuses auto-detection**: same PCB family as the YaoKun S3 —
+  CW270 (I2C 6050) / CW90 (SPI 6500) work as-is, no CLI configuration needed.
+- **MS5611 barometer driver** available (I2C socket); `baro_math -1` auto-detects clones.
+- **Optical flow (PMW3901) is out of scope**: ESP-FC 0.3.0 has no flow-device driver;
+  GPIO12/13/14/15 are registered but unused.
+- **Release sanitisation**: build-machine paths / account names removed from the
+  firmware image (app checksum recomputed).
+
+## 9. Find us
+
+- Hardware & original project: Bilibili [MildlySpicyDragon](https://space.bilibili.com/544479100) ·
+  OSHWHub [malagis](https://oshwhub.com/malagis/esp32-mini-plane)
+- Firmware adaptation: Bilibili [YaoKunSmart](https://space.bilibili.com/3707011699050767) ·
+  GitHub: <https://github.com/YaoKunS> ·
+  Taobao: [YaoKunSmart](https://shop35432590.taobao.com/)
 
 ---
 
@@ -647,8 +1148,9 @@ def render(tmpl, ctx, merged_name, merged_sha, merged_size):
         imghdr += (f"\n- bootloader 镜像头：`E9 {h['segments']:02X} {h['spi_mode']:02X} "
                    f"{h['spi_speed_size']:02X}` → SPI 模式 **{'DIO' if h['spi_mode'] == 2 else 'QIO'}**")
 
-    psram = "8MB OPI 八线 PSRAM" if "n4r2" not in ctx["env"] else "2MB QIO 四线 PSRAM"
-    psram_en = "8 MB OPI (octal)" if "n4r2" not in ctx["env"] else "2 MB QIO (quad)"
+    # 🔴 psram 文案改为板型注册表给（ctx["psram_cn"/"psram_en"]），不再从 env 名猜
+    psram = ctx["psram_cn"]
+    psram_en = ctx["psram_en"]
 
     kw = dict(ctx)
     kw.update({
@@ -657,12 +1159,10 @@ def render(tmpl, ctx, merged_name, merged_sha, merged_size):
         "merged": merged_name,
         "msha": merged_sha,
         "appsize": human_size(ctx["app_size"]),
-        "psram": psram,
-        "psram": psram,
     })
     return (tmpl
             .replace("{flash}", str(ctx["flash_size_mb"]))
-            .replace("{psram}", psram_en if tmpl is EN_TMPL else psram)
+            .replace("{psram}", psram_en if tmpl is EN_TMPL or tmpl is HLG_EN_TMPL else psram)
             .replace("{version}", ctx["version"])
             .replace("{env}", ctx["env"])
             .replace("{built_en}", ctx["built_en"])
@@ -798,14 +1298,19 @@ def markdown_to_text(md):
 def main():
     ap = argparse.ArgumentParser(description="ESP-FC 耀坤整理版 固件打包与指纹说明生成")
     ap.add_argument("--env", default="esp32s3_yaokun", help="PlatformIO 编译环境名")
-    ap.add_argument("--ver", default="v1.0", help="固件版本号")
+    ap.add_argument("--ver", default="V1.1", help="固件版本号（当前发布版 V1.1，2026-11-27）")
     ap.add_argument("--no-merge", action="store_true", help="只生成说明，不做合并")
+    # 🔴 --board（2026-11-27 火龙果适配新增）：选择板型注册表条目。
+    #    容量/PSRAM 文案/发布件命名/说明模板都按板型取，新增板型只改 BOARDS 表。
+    ap.add_argument("--board", default="s3", choices=sorted(BOARDS.keys()),
+                    help="板型（决定命名、容量文案与说明模板）")
     args = ap.parse_args()
 
+    board = BOARDS[args.board]
     os.makedirs(RELEASE_DIR, exist_ok=True)
-    log(f"环境 = {args.env}   版本 = {args.ver}")
+    log(f"环境 = {args.env}   板型 = {args.board}   版本 = {args.ver}")
 
-    ctx = build_context(args.env, args.ver)
+    ctx = build_context(args.env, args.ver, board)
     for s in ctx["segments"]:
         log(f"  {s['name']:<12} 0x{s['addr']:06X}  {human_size(s['size'])}  {s['sha'][:16]}…")
 
@@ -826,7 +1331,8 @@ def main():
     ctx["app_size"] = app["size"]
     ctx["app_hdr"] = parse_image_header(app["path"])   # 镜像头信息也可能变，重取
 
-    base = f"YaoKunS_耀坤S3无人机_ESP-FC整理版_{args.ver}_耀坤智联_{ctx['date_tag']}"
+    # 发布件命名：按板型注册表的模板填版本号与日期（命名口径见 BOARDS 注释）
+    base = board["base"].format(ver=args.ver, date=ctx["date_tag"])
 
     # ── 1) 合并单文件 ──────────────────────────────────────────────────────
     if args.no_merge:
@@ -844,13 +1350,17 @@ def main():
     # ── 2) 生成 4 份说明：中文/英文 × markdown/纯文本 ────────────────────
     #      md 是内容主体；txt 由 markdown_to_text() 自动投影，保证两两一致。
     docs = (
-        ("_指纹与烧录说明.md", "CN_TMPL", False),
-        ("_指纹与烧录说明.txt", "CN_TMPL", True),
-        ("_Fingerprint_and_Flashing_EN.md", "EN_TMPL", False),
-        ("_Fingerprint_and_Flashing_EN.txt", "EN_TMPL", True),
+        ("_指纹与烧录说明.md", board["tmpl_cn"], False),
+        ("_指纹与烧录说明.txt", board["tmpl_cn"], True),
+        ("_Fingerprint_and_Flashing_EN.md", board["tmpl_en"], False),
+        ("_Fingerprint_and_Flashing_EN.txt", board["tmpl_en"], True),
     )
+    # 说明模板按板型选（BOARDS["tmpl_cn"/"tmpl_en"] 指向模板变量名，此处解引用）；
+    # 模板注册表集中放在这里，新增板型无需再动本循环。
+    TMPLS = {"CN_TMPL": CN_TMPL, "EN_TMPL": EN_TMPL,
+             "HLG_CN_TMPL": HLG_CN_TMPL, "HLG_EN_TMPL": HLG_EN_TMPL}
     for suffix, tmpl_name, as_text in docs:
-        tmpl = CN_TMPL if tmpl_name == "CN_TMPL" else EN_TMPL
+        tmpl = TMPLS[tmpl_name]
         out = os.path.join(RELEASE_DIR, base + suffix)
         body = render(tmpl, ctx, merged_name, merged_sha, merged_size)
         if as_text:
